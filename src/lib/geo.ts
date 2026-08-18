@@ -18,6 +18,37 @@ export function haversine(
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(s));
 }
 
+/**
+ * How far a stored coordinate could be from the point it was meant to mark.
+ *
+ * A latitude written to one decimal place names an 11 km band. Comparing that
+ * against a 300 m fence asks a question the data cannot answer, and the answer
+ * it invents is "everyone is outside". Trailing zeros carry no information and
+ * are already gone by the time the value is a number, which is correct here.
+ */
+export function pinUncertaintyM(lat: number, lng: number): number {
+  const decimals = (n: number) => {
+    const text = String(n);
+    // Exponential notation only appears far below any real coordinate, and
+    // means the value is essentially zero — treat it as no precision at all.
+    if (text.includes('e') || text.includes('E')) return 0;
+    const dot = text.indexOf('.');
+    return dot === -1 ? 0 : text.length - dot - 1;
+  };
+  // One degree of latitude is ~111 km. Longitude degrees shrink with the
+  // cosine of the latitude, so using the latitude figure for both is the
+  // conservative direction.
+  return 111_000 * 10 ** -Math.min(decimals(lat), decimals(lng));
+}
+
+/** Whether a villa's pin is precise enough to judge its own radius. */
+export function pinIsUsable(
+  table: Pick<VillaTable, 'lat' | 'lng' | 'radiusM'>,
+): boolean {
+  if (table.lat === null || table.lng === null) return false;
+  return pinUncertaintyM(table.lat, table.lng) <= table.radiusM;
+}
+
 export interface GeoReading {
   lat: number;
   lng: number;
@@ -41,14 +72,16 @@ export function evaluateGeo(
   reading: GeoReading | null,
 ): { status: GeoStatus; distanceM: number | null } {
   if (!reading) return { status: 'UNAVAILABLE', distanceM: null };
-  if (table.lat === null || table.lng === null) {
-    // Villa has no coordinates configured yet — nothing to compare against.
+  // No pin, or one coarser than the fence it would be measured against — a
+  // district-level coordinate against a 300 m radius flags every guest who
+  // ever scans. Nothing to compare until someone stands at the villa and
+  // captures a real one.
+  const { lat, lng } = table;
+  if (lat === null || lng === null || !pinIsUsable(table)) {
     return { status: 'UNKNOWN', distanceM: null };
   }
 
-  const distanceM = Math.round(
-    haversine(reading.lat, reading.lng, table.lat, table.lng),
-  );
+  const distanceM = Math.round(haversine(reading.lat, reading.lng, lat, lng));
 
   // Give the guest the benefit of their own GPS error margin rather than
   // flagging someone standing in the villa whose phone reports ±200m.

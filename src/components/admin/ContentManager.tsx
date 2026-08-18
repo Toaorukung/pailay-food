@@ -53,6 +53,16 @@ export interface FieldDef {
   defaultValue?: string | number | boolean;
   /** Shown as a column in the list view. */
   column?: boolean;
+  /**
+   * Full control over this row of the form. For controls that write more than
+   * one key — capturing a GPS pin sets both a latitude and a longitude, and
+   * splitting that across two inputs would lose the fact that they are one
+   * reading taken at one moment.
+   */
+  render?: (api: {
+    values: Record<string, unknown>;
+    set: (key: string, value: unknown) => void;
+  }) => React.ReactNode;
 }
 
 export type Row = Record<string, string>;
@@ -480,14 +490,18 @@ function RecordDialog({
             {group.name && (
               <p className="text-sm font-semibold">{group.name}</p>
             )}
-            {group.fields.map((field) => (
-              <FieldInput
-                key={field.key}
-                field={field}
-                value={values[field.key]}
-                onChange={(v) => set(field.key, v)}
-              />
-            ))}
+            {group.fields.map((field) =>
+              field.render ? (
+                <div key={field.key}>{field.render({ values, set })}</div>
+              ) : (
+                <FieldInput
+                  key={field.key}
+                  field={field}
+                  value={values[field.key]}
+                  onChange={(v) => set(field.key, v)}
+                />
+              ),
+            )}
           </div>
         ))}
 

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { Printer, Info } from 'lucide-react';
 import { ContentManager, type FieldDef } from '@/components/admin/ContentManager';
 import { CopyButton } from '@/components/admin/CopyButton';
+import { PinCapture } from '@/components/admin/PinCapture';
+import { pinUncertaintyM } from '@/lib/geo';
 import { Button, Card } from '@/components/ui';
 
 /**
@@ -13,6 +15,30 @@ import { Button, Card } from '@/components/ui';
  */
 function villaPath(row: Record<string, string>): string | null {
   return row.slug && row.qr_code ? `/${row.slug}/${row.qr_code}` : null;
+}
+
+/**
+ * A pin coarser than its own radius is worse than no pin: it reads as
+ * configured while flagging every guest who scans. Say so on the row rather
+ * than showing a number that looks fine.
+ */
+function pinNote(row: Record<string, string>) {
+  if (!row.lat || !row.lng) {
+    return <span className="text-[var(--warning)]">ยังไม่ตั้งพิกัด</span>;
+  }
+  const radius = Number(row.radius_m) || 300;
+  if (pinUncertaintyM(Number(row.lat), Number(row.lng)) > radius) {
+    return (
+      <span className="text-[var(--warning)]">
+        พิกัดหยาบเกินรัศมี — ปักหมุดใหม่ที่วิลล่า
+      </span>
+    );
+  }
+  return (
+    <span className="tabular">
+      {Number(row.lat).toFixed(5)}, {Number(row.lng).toFixed(5)}
+    </span>
+  );
 }
 
 const FIELDS: FieldDef[] = [
@@ -31,11 +57,17 @@ const FIELDS: FieldDef[] = [
   },
   { key: 'villa', label: 'ชื่อวิลล่า', type: 'text', hint: 'แสดงบนหัวหน้าจอลูกค้าและตั๋วครัว' },
   {
+    key: '_pin',
+    label: 'ปักหมุดวิลล่า',
+    type: 'text',
+    render: ({ values, set }) => <PinCapture values={values} set={set} />,
+  },
+  {
     key: 'lat',
     label: 'ละติจูด',
     type: 'number',
     step: 0.000001,
-    hint: 'เปิด Google Maps ที่วิลล่า คลิกขวาบนหมุด แล้วคัดลอกตัวเลขคู่แรก',
+    hint: 'หรือเปิด Google Maps ที่วิลล่า คลิกขวาบนหมุด แล้วคัดลอกตัวเลขคู่แรก',
   },
   { key: 'lng', label: 'ลองจิจูด', type: 'number', step: 0.000001 },
   {
@@ -87,13 +119,7 @@ export default function TablesPage() {
         }}
         summaryOf={(row) => (
           <>
-            {row.lat && row.lng ? (
-              <span className="tabular">
-                {Number(row.lat).toFixed(5)}, {Number(row.lng).toFixed(5)}
-              </span>
-            ) : (
-              <span className="text-[var(--warning)]">ยังไม่ตั้งพิกัด</span>
-            )}
+            {pinNote(row)}
             <span>รัศมี {row.radius_m || 300} ม.</span>
             {villaPath(row) ? (
               <span className="tabular text-[var(--brand)]">{villaPath(row)}</span>
