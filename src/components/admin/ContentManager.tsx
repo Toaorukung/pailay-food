@@ -57,6 +57,36 @@ export interface FieldDef {
 
 export type Row = Record<string, string>;
 
+/**
+ * One column of the desktop table. Screens that supply columns get a real
+ * table on a laptop and keep the card list on a phone — a table squeezed onto
+ * a 390px screen is unreadable, and a card list on a 27" monitor wastes it.
+ */
+/**
+ * Handed to a column renderer so a cell can change its own row without
+ * opening the editor — a "sold out" toggle is one tap, and making the kitchen
+ * open a form mid-service to flip it is the wrong trade.
+ */
+export interface RowApi {
+  /** Saves the row with `changes` applied. Sends the whole record. */
+  patch: (changes: Record<string, unknown>) => Promise<void>;
+  saving: boolean;
+}
+
+export interface ColumnDef {
+  key: string;
+  label: string;
+  render: (row: Row, api: RowApi) => React.ReactNode;
+  align?: 'left' | 'right';
+  /** Hidden below this breakpoint, for columns that are nice-to-have. */
+  hideBelow?: 'lg' | 'xl';
+}
+
+export interface FilterDef {
+  value: string;
+  label: string;
+}
+
 export interface ContentManagerProps {
   endpoint: string;
   title: string;
@@ -67,6 +97,12 @@ export interface ContentManagerProps {
   searchOf?: (row: Row) => string;
   /** Extra read-only summary rendered on each list row. */
   summaryOf?: (row: Row) => React.ReactNode;
+  /** Supply to get a table layout from md up. */
+  columns?: ColumnDef[];
+  /** Chip row above the list. Paired with `filterOf`. */
+  filters?: FilterDef[];
+  filterOf?: (row: Row) => string;
+  addLabel?: string;
   emptyHint?: string;
   onChanged?: () => void;
 }
@@ -79,6 +115,10 @@ export function ContentManager({
   labelOf,
   searchOf,
   summaryOf,
+  columns,
+  filters,
+  filterOf,
+  addLabel = 'เพิ่มใหม่',
   emptyHint,
   onChanged,
 }: ContentManagerProps) {
@@ -87,6 +127,8 @@ export function ContentManager({
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Row | null>(null);
   const [creating, setCreating] = useState(false);
+  const [filter, setFilter] = useState<string>('');
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await adminFetch<{ rows: Row[] }>(`/api/admin/content/${endpoint}`);
@@ -105,11 +147,32 @@ export function ContentManager({
   const filtered = useMemo(() => {
     if (!rows) return [];
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((row) =>
-      (searchOf?.(row) ?? Object.values(row).join(' ')).toLowerCase().includes(q),
-    );
-  }, [rows, query, searchOf]);
+    return rows.filter((row) => {
+      if (filter && filterOf?.(row) !== filter) return false;
+      if (!q) return true;
+      const hay = searchOf?.(row) ?? Object.values(row).join(' ');
+      return hay.toLowerCase().includes(q);
+    });
+  }, [rows, query, filter, filterOf, searchOf]);
+
+  async function patchRow(row: Row, changes: Record<string, unknown>) {
+    setSavingId(row.id);
+    setError(null);
+
+    const payload = { ...hydrate(fields, row), ...changes, id: row.id };
+    const res = await adminFetch(`/api/admin/content/${endpoint}`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    setSavingId(null);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    await load();
+    onChanged?.();
+  }
 
   async function remove(row: Row) {
     if (!confirm(`ลบ "${labelOf(row)}" ?\n\nการลบนี้ย้อนกลับไม่ได้`)) return;
@@ -132,21 +195,45 @@ export function ContentManager({
           <h1 className="text-xl font-semibold">{title}</h1>
           {description && <p className="text-sm muted">{description}</p>}
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="size-4" />
-          เพิ่มใหม่
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 muted" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ค้นหา…"
+              className="w-full pl-9 sm:w-64"
+            />
+          </div>
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="size-4" />
+            {addLabel}
+          </Button>
+        </div>
       </header>
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 muted" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="ค้นหา…"
-          className="pl-9"
-        />
-      </div>
+      {filters && filters.length > 0 && (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar">
+          {[{ value: '', label: `ทั้งหมด · ${rows?.length ?? 0}` }, ...filters].map(
+            (chip) => (
+              <button
+                key={chip.value}
+                type="button"
+                onClick={() => setFilter(chip.value)}
+                aria-pressed={filter === chip.value}
+                className={cn(
+                  'shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
+                  filter === chip.value
+                    ? 'bg-[var(--brand)] text-white shadow-[var(--shadow-brand)]'
+                    : 'border border-[var(--line)] bg-[var(--surface)] muted hover:text-[var(--text)]',
+                )}
+              >
+                {chip.label}
+              </button>
+            ),
+          )}
+        </div>
+      )}
 
       {error && (
         <p className="rounded-xl bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">
@@ -163,7 +250,75 @@ export function ContentManager({
       ) : filtered.length === 0 ? (
         <EmptyState title="ยังไม่มีข้อมูล" body={emptyHint} />
       ) : (
-        <ul className="space-y-2">
+        <>
+        {columns && (
+          <div className="hidden overflow-x-auto rounded-[var(--radius-card)] border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)] md:block">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
+                      className={cn(
+                        'whitespace-nowrap border-b border-[var(--line)] bg-[var(--surface-sunken)] px-4 py-2.5',
+                        'text-[11px] font-bold uppercase tracking-wider muted',
+                        col.align === 'right' ? 'text-right' : 'text-left',
+                        col.hideBelow === 'lg' && 'hidden lg:table-cell',
+                        col.hideBelow === 'xl' && 'hidden xl:table-cell',
+                      )}
+                    >
+                      {col.label}
+                    </th>
+                  ))}
+                  <th className="w-px border-b border-[var(--line)] bg-[var(--surface-sunken)] px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row) => (
+                  <tr key={row.id} className="hover:bg-[var(--surface-sunken)]">
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className={cn(
+                          'border-b border-[var(--line)] px-4 py-2.5 align-middle',
+                          col.align === 'right' && 'text-right tabular',
+                          col.hideBelow === 'lg' && 'hidden lg:table-cell',
+                          col.hideBelow === 'xl' && 'hidden xl:table-cell',
+                        )}
+                      >
+                        {col.render(row, {
+                          patch: (changes) => patchRow(row, changes),
+                          saving: savingId === row.id,
+                        })}
+                      </td>
+                    ))}
+                    <td className="whitespace-nowrap border-b border-[var(--line)] px-4 py-2.5 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditing(row)}
+                        aria-label={`แก้ไข ${labelOf(row)}`}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => remove(row)}
+                        aria-label={`ลบ ${labelOf(row)}`}
+                        className="text-[var(--danger)]"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <ul className={cn('space-y-2', columns && 'md:hidden')}>
           {filtered.map((row) => (
             <li key={row.id}>
               <Card className="flex items-center gap-3 p-3">
@@ -211,6 +366,7 @@ export function ContentManager({
             </li>
           ))}
         </ul>
+        </>
       )}
 
       {(editing || creating) && (

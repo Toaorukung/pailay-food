@@ -8,7 +8,7 @@ import {
   deleteMenuItemCascade,
 } from '@/lib/sheets/crud';
 import { bustMenuCache } from '@/lib/menu-cache';
-import { bustTablesCache } from '@/lib/tables';
+import { bustTablesCache, getTables } from '@/lib/tables';
 import {
   menuItemSchema,
   categorySchema,
@@ -103,6 +103,18 @@ export const POST = handler(async (req: Request, { params }: Params) => {
   const record = body.data as Record<string, unknown>;
   const existingId = String(record.id ?? '').trim();
   const id = existingId || `${target.prefix}-${shortCode(5).toLowerCase()}`;
+
+  // Two villas sharing a slug would make /<slug>/<code> ambiguous, and a
+  // guest could land on the wrong villa's bill. Refuse rather than resolve it
+  // arbitrarily at read time.
+  if (target.tab === TABS.Tables && typeof record.slug === 'string' && record.slug) {
+    const villas = await getTables();
+    if (villas.some((v) => v.slug === record.slug && v.id !== id)) {
+      return fail(`ชื่อลิงก์ "${record.slug}" ถูกใช้กับวิลล่าอื่นแล้ว`, 409, {
+        code: 'SLUG_TAKEN',
+      });
+    }
+  }
 
   // Arrays live in the Sheet as comma-joined strings; toRow handles that, but
   // being explicit here keeps the stored shape obvious when reading the sheet.

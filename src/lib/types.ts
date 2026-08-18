@@ -114,6 +114,10 @@ export interface VillaTable {
   id: string;
   label: string;
   villa: string;
+  /** URL-safe villa name, the first segment of the printed link. */
+  slug: string;
+  /** Random, unguessable second segment. Printed into the QR code. */
+  qrCode: string;
   lat: number | null;
   lng: number | null;
   radiusM: number;

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { QrCode, ChefHat, ExternalLink, TriangleAlert } from 'lucide-react';
 import { getTables } from '@/lib/tables';
-import { tableUrl } from '@/lib/qr';
+import { villaUrl } from '@/lib/villa-link';
 import { serviceStatus } from '@/lib/demo';
 
 export const dynamic = 'force-dynamic';
@@ -51,7 +51,7 @@ export default async function HomePage() {
             {tables.map((table) => (
               <li key={table.id}>
                 <a
-                  href={tableUrl(table.id)}
+                  href={villaUrl(table)}
                   className="flex items-center justify-between gap-2 rounded-xl border border-[var(--line)] px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-sunken)]"
                 >
                   {table.label}

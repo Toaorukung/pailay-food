@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { currentAdmin } from '@/lib/admin/auth';
 import { hasRole } from '@/lib/types';
 import { getTables } from '@/lib/tables';
-import { tableUrl } from '@/lib/qr';
+import { villaUrl } from '@/lib/villa-link';
 import { loadSettingsMap } from '@/lib/sheets/repo';
 import { PrintButton } from '@/components/admin/PrintButton';
 
@@ -26,7 +26,7 @@ export default async function QrPrintPage() {
 
   const cards = await Promise.all(
     active.map(async (table) => {
-      const url = tableUrl(table.id);
+      const url = villaUrl(table);
       return {
         table,
         url,

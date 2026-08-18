@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ContentManager, type FieldDef } from '@/components/admin/ContentManager';
-import { Skeleton } from '@/components/ui';
+import { Badge, Skeleton } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
 import type { MenuCatalog } from '@/lib/types';
 
@@ -114,17 +114,123 @@ export default function MenuPage() {
       <ContentManager
         endpoint="menu"
         title="เมนูอาหาร"
-        description="แก้ไขแล้วมีผลกับหน้าลูกค้าทันที — ระบบล้างแคชให้อัตโนมัติ"
+        description={`${catalog.items.length} รายการ · แก้ไขแล้วมีผลกับหน้าลูกค้าทันที`}
+        addLabel="เพิ่มเมนู"
         fields={fields}
         onChanged={load}
         labelOf={(row) => row.name_th || row.name_en || row.id}
         searchOf={(row) =>
           [row.name_th, row.name_en, row.name_zh, row.tags, row.ingredients_th].join(' ')
         }
+        filters={catalog.categories.map((c) => ({
+          value: c.id,
+          label: `${c.icon ?? ''} ${c.name.th || c.name.en}`.trim(),
+        }))}
+        filterOf={(row) => row.category_id}
+        columns={[
+          {
+            key: 'name',
+            label: 'เมนู',
+            render: (row) => (
+              <div className="flex items-center gap-3">
+                {row.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={row.image_url}
+                    alt=""
+                    className="size-11 shrink-0 rounded-xl object-cover"
+                  />
+                ) : (
+                  <span className="food-tile flex size-11 shrink-0 items-center justify-center rounded-xl text-lg">
+                    <span className="relative">
+                      {catalog.categories.find((c) => c.id === row.category_id)?.icon ?? '🍽'}
+                    </span>
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">
+                    {row.name_th || row.name_en || row.id}
+                  </span>
+                  <span className="block truncate text-xs muted">
+                    {row.name_en || row.id}
+                  </span>
+                </span>
+              </div>
+            ),
+          },
+          {
+            key: 'category',
+            label: 'หมวดหมู่',
+            hideBelow: 'lg',
+            render: (row) => <span className="muted">{categoryName(row.category_id)}</span>,
+          },
+          {
+            key: 'price',
+            label: 'ราคา',
+            align: 'right',
+            render: (row) =>
+              row.price_on_request === 'TRUE' ? (
+                <span className="text-xs muted">ตามน้ำหนัก</span>
+              ) : (
+                <span className="font-bold">{formatMoney(Number(row.price || 0))}</span>
+              ),
+          },
+          {
+            key: 'flags',
+            label: 'หมายเหตุ',
+            hideBelow: 'xl',
+            render: (row) => (
+              <span className="flex flex-wrap gap-1">
+                {row.allergens && (
+                  <Badge tone="danger">
+                    {row.allergens.split(',').filter(Boolean).length} สารก่อภูมิแพ้
+                  </Badge>
+                )}
+                {row.is_alcohol === 'TRUE' && <Badge tone="warning">แอลกอฮอล์</Badge>}
+                {row.is_vegetarian === 'TRUE' && <Badge tone="success">มังสวิรัติ</Badge>}
+              </span>
+            ),
+          },
+          {
+            key: 'available',
+            label: 'พร้อมขาย',
+            // Tap to 86 a dish. Availability changes several times a service
+            // and is the one field worth editing without opening the form.
+            render: (row, api) => {
+              const available = row.is_available !== 'FALSE';
+              return (
+                <button
+                  type="button"
+                  disabled={api.saving}
+                  onClick={() => api.patch({ is_available: !available })}
+                  aria-pressed={available}
+                  title={available ? 'กดเพื่อทำเครื่องหมายว่าหมด' : 'กดเพื่อเปิดขายอีกครั้ง'}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold leading-none transition-colors disabled:opacity-50 ${
+                    available
+                      ? 'bg-[var(--success-soft)] text-[var(--success)] hover:brightness-95'
+                      : 'bg-[var(--surface-sunken)] muted hover:text-[var(--text)]'
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`size-1.5 rounded-full ${
+                      available ? 'bg-[var(--success)]' : 'bg-[var(--text-subtle)]'
+                    }`}
+                  />
+                  {available ? 'พร้อมขาย' : 'หมดชั่วคราว'}
+                </button>
+              );
+            },
+          },
+        ]}
         summaryOf={(row) => (
           <>
             <span>{categoryName(row.category_id)}</span>
-            <span className="tabular">{formatMoney(Number(row.price || 0))}</span>
+            <span className="tabular">
+              {row.price_on_request === 'TRUE'
+                ? 'ตามน้ำหนัก'
+                : formatMoney(Number(row.price || 0))}
+            </span>
             {row.allergens && <span className="text-[var(--danger)]">มีสารก่อภูมิแพ้</span>}
           </>
         )}

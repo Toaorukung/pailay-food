@@ -49,7 +49,14 @@ export const HEADERS: Record<TabName, string[]> = {
     'price_delta', 'is_available', 'sort_order',
   ],
   Allergens: ['id', 'name_th', 'name_en', 'name_zh', 'icon', 'is_active'],
-  Tables: ['id', 'label', 'villa', 'lat', 'lng', 'radius_m', 'is_active'],
+  Tables: [
+    'id', 'label', 'villa',
+    // The two halves of the printed link, /{slug}/{qr_code}. The slug is
+    // readable so a guest can see which villa they are ordering for; the code
+    // is random so the link cannot be guessed from the villa name alone.
+    'slug', 'qr_code',
+    'lat', 'lng', 'radius_m', 'is_active',
+  ],
   Sessions: [
     'session_id', 'table_id', 'opened_at', 'closed_at', 'status',
     'guest_name', 'allergy_profile', 'geo_status', 'distance_m', 'locale',

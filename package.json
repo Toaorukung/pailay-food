@@ -17,7 +17,9 @@
     "e2e": "playwright test",
     "predev": "tsx scripts/ensure-env.ts",
     "demo": "tsx scripts/ensure-env.ts && next build --no-lint && next start",
-    "connect-sheet": "tsx scripts/connect-sheet.ts"
+    "connect-sheet": "tsx scripts/connect-sheet.ts",
+    "test:merge": "node scripts/merge-test.mjs",
+    "fix:tables": "node scripts/fix-tables-columns.mjs"
   },
   "dependencies": {
     "@noble/hashes": "^1.7.1",

@@ -7,6 +7,18 @@ import { Button, Card } from '@/components/ui';
 
 const FIELDS: FieldDef[] = [
   { key: 'label', label: 'ชื่อที่แสดง', type: 'text', hint: 'เช่น Villa 3 — Pool Deck' },
+  {
+    key: 'slug',
+    label: 'ชื่อในลิงก์ (slug)',
+    type: 'text',
+    hint: 'ส่วนแรกของลิงก์ QR เช่น villa-1 · ใช้ a-z 0-9 และ - เท่านั้น · ห้ามซ้ำกับวิลล่าอื่น',
+  },
+  {
+    key: 'qr_code',
+    label: 'รหัสในลิงก์',
+    type: 'text',
+    hint: 'ส่วนที่สองของลิงก์ เว้นว่างได้ ระบบจะสร้างให้เอง — เปลี่ยนแล้ว QR ที่พิมพ์ไปแล้วจะใช้ไม่ได้',
+  },
   { key: 'villa', label: 'ชื่อวิลล่า', type: 'text', hint: 'แสดงบนหัวหน้าจอลูกค้าและตั๋วครัว' },
   {
     key: 'lat',
@@ -34,7 +46,8 @@ export default function TablesPage() {
         <div className="flex items-start gap-2 text-sm">
           <Info className="mt-0.5 size-4 shrink-0 muted" />
           <p className="muted">
-            QR ของแต่ละวิลล่าเป็นแบบถาวร พิมพ์ครั้งเดียวใช้ได้ตลอด —
+            ลิงก์ในQR คือ /ชื่อวิลล่า/รหัส · แขกที่สแกนขณะมีเซสชันเปิดอยู่จะเข้าบิลเดียวกัน
+            QR เป็นแบบถาวร พิมพ์ครั้งเดียวใช้ได้ตลอด —
             แต่ละครั้งที่สแกนระบบจะสร้างเซสชันใหม่ให้เอง
           </p>
         </div>

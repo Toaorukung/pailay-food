@@ -5,6 +5,7 @@ import {
   type SeedItem,
 } from '../../scripts/menu-data';
 import { SETTINGS_DEFAULTS } from '../lib/sheets/repo';
+import { fallbackCode } from '../lib/villa-link';
 import type {
   Allergen,
   Category,
@@ -168,6 +169,8 @@ export const BUNDLED_TABLES: VillaTable[] = [1, 2, 3, 4, 5, 6].map((n) => ({
   id: `v-villa${n}`,
   label: `Villa ${n}`,
   villa: `Villa ${n}`,
+  slug: `villa-${n}`,
+  qrCode: fallbackCode(`v-villa${n}`),
   lat: 12.8,
   lng: 99.9667,
   radiusM: 300,

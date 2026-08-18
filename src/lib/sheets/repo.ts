@@ -1,5 +1,6 @@
 import { batchGet } from './client';
 import { sheetsConfigured } from '../demo';
+import { slugify, fallbackCode } from '../villa-link';
 import { TABS, fullRange, toObjects, num, bool, list, type RawRow } from './schema';
 import type {
   AdminUser,
@@ -238,6 +239,11 @@ export async function loadTables(): Promise<VillaTable[]> {
       id: r.id,
       label: r.label || r.id,
       villa: r.villa ?? '',
+      // Older rows predate these columns. Deriving a stable fallback from the
+      // id keeps existing villas reachable instead of 404ing until someone
+      // edits every row by hand.
+      slug: r.slug || slugify(r.villa || r.label || r.id),
+      qrCode: r.qr_code || fallbackCode(r.id),
       lat: r.lat === '' ? null : num(r.lat),
       lng: r.lng === '' ? null : num(r.lng),
       radiusM: num(r.radius_m, 300),

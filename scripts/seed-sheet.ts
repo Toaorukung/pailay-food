@@ -24,6 +24,7 @@ const { batchGet, batchUpdate, append, listTabs, addTabs } = await import(
 );
 const { hashPassword } = await import('../src/lib/admin/password');
 const { CATEGORIES, ALLERGENS, ITEMS, validate } = await import('./menu-data');
+const { fallbackCode: villaCode } = await import('../src/lib/villa-link');
 
 const bare = process.argv.includes('--bare');
 
@@ -65,6 +66,35 @@ async function main() {
   }
 
   console.log('Writing header rows…');
+
+  // Rewriting headers is only safe when columns were appended. An insertion in
+  // the middle silently re-labels existing data: every cell to its right shifts
+  // by one, nothing errors, and a latitude ends up being read as a villa slug.
+  // Check the current layout before touching anything.
+  const currentHeaders = await batchGet(
+    tabNames.map((tab) => `${tab}!A1:${colLetter(HEADERS[tab].length)}1`),
+  );
+  const shifted: string[] = [];
+  for (const tab of tabNames) {
+    const range = `${tab}!A1:${colLetter(HEADERS[tab].length)}1`;
+    const existing = (currentHeaders[range] ?? [])[0] ?? [];
+    if (existing.length === 0) continue;
+    // Every column that already exists must still sit at the same index.
+    if (existing.some((name, i) => name && HEADERS[tab][i] !== name)) {
+      shifted.push(tab);
+    }
+  }
+
+  if (shifted.length > 0 && !process.argv.includes('--force-headers')) {
+    console.error(`
+  Column order changed in: ${shifted.join(', ')}
+
+  Rewriting the header row would leave existing rows out of step with their own
+  labels. Either move the new columns to the END of HEADERS, or migrate the rows
+  first and then re-run with --force-headers.
+`);
+    process.exit(1);
+  }
   await batchUpdate(
     tabNames.map((tab) => ({
       range: `${tab}!A1:${colLetter(HEADERS[tab].length)}1`,
@@ -109,16 +139,13 @@ async function main() {
     await append(`${tab}!A1`, rows);
   }
 
-  const signature = createHmac('sha256', tableSecret)
-    .update('table:v-villa1')
-    .digest('base64url')
-    .slice(0, 16);
+  const demoLink = `${appUrl}/villa-1/${villaCode('v-villa1')}`;
 
   console.log(`
 Done.
 
   Demo villa QR link:
-    ${appUrl}/t/v-villa1?k=${signature}
+    ${demoLink}
 
   Admin sign-in (change this immediately):
     username: owner
@@ -234,6 +261,11 @@ function buildSeeds(): Record<string, string[][]> {
         id: `v-villa${n}`,
         label: `Villa ${n}`,
         villa: `Villa ${n}`,
+        // The printed link is /<slug>/<qr_code>. Leaving qr_code blank is safe
+        // — the app derives a stable one from the villa id — but writing it
+        // makes the value visible in the sheet.
+        slug: `villa-${n}`,
+        qr_code: villaCode(`v-villa${n}`),
         // Cha-am, Phetchaburi. Approximate — set the real pin per villa in
         // the admin screen before printing the QR codes.
         lat: 12.8,

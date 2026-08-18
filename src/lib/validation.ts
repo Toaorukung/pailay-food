@@ -140,6 +140,20 @@ export const tableSchema = z.object({
   id: z.string().max(64).optional(),
   label: z.string().min(1).max(80),
   villa: z.string().max(80).default(''),
+  // First segment of the printed link. Restricted to URL-safe characters so
+  // the QR encodes cleanly and the slug cannot smuggle a path separator.
+  slug: z
+    .string()
+    .max(40)
+    .regex(/^[a-z0-9-]*$/, 'ใช้ได้เฉพาะ a-z, 0-9 และ - เท่านั้น')
+    .default(''),
+  // Second segment. Blank is fine — the app derives a stable code from the
+  // villa id — but changing it invalidates every QR already printed.
+  qr_code: z
+    .string()
+    .max(40)
+    .regex(/^[A-Za-z0-9_-]*$/, 'ใช้ได้เฉพาะตัวอักษร ตัวเลข _ และ -')
+    .default(''),
   lat: z.number().min(-90).max(90).nullable().default(null),
   lng: z.number().min(-180).max(180).nullable().default(null),
   radius_m: z.number().int().min(10).max(20_000).default(300),
