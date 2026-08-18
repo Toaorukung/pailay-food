@@ -294,17 +294,21 @@ function ItemRow({
             alt=""
             loading="lazy"
             decoding="async"
-            className="size-20 shrink-0 rounded-xl object-cover"
+            className="size-[4.75rem] shrink-0 rounded-2xl object-cover"
           />
         ) : (
-          <div className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-sunken)] text-2xl">
-            {catalog.categories.find((c) => c.id === item.categoryId)?.icon ?? '🍽'}
+          // No photo: a warm tile with the category glyph, so the row keeps its
+          // rhythm instead of collapsing into a wall of text.
+          <div className="food-tile flex size-[4.75rem] shrink-0 items-center justify-center rounded-2xl text-[1.75rem]">
+            <span className="relative">
+              {catalog.categories.find((c) => c.id === item.categoryId)?.icon ?? '🍽'}
+            </span>
           </div>
         )}
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-medium leading-snug">{L(item.name)}</p>
+            <p className="font-semibold leading-snug">{L(item.name)}</p>
             {/* A market-price dish stored at 0 must never render as "฿0". */}
             <p
               className={cn(
@@ -356,6 +360,15 @@ function ItemRow({
             )}
           </div>
         </div>
+
+        {item.isAvailable && (
+          <span
+            aria-hidden
+            className="mt-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-lg font-bold leading-none text-white shadow-[var(--shadow-brand)]"
+          >
+            +
+          </span>
+        )}
       </button>
     </li>
   );
@@ -375,10 +388,12 @@ function CategoryChip({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+        'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5',
+        'text-sm font-semibold transition-colors',
+        'active:scale-95 active:duration-75',
         active
-          ? 'bg-brand-600 text-white'
-          : 'bg-[var(--surface-sunken)] text-[var(--text)]',
+          ? 'bg-[var(--brand)] text-white shadow-[var(--shadow-brand)]'
+          : 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--line)]',
       )}
     >
       {children}

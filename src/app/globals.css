@@ -329,6 +329,23 @@
       linear-gradient(150deg, var(--color-brand-500), var(--color-brand-700));
   }
 
+  /*
+    Stand-in for a food photo. Most menu rows have no image, and a flat grey
+    square makes the whole list read as unfinished — a warm gradient with the
+    category glyph keeps the page appetising until real photography lands.
+  */
+  .food-tile {
+    background: linear-gradient(140deg, var(--color-brand-100), var(--color-brand-200));
+    position: relative;
+    overflow: hidden;
+  }
+  .food-tile::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(70% 60% at 30% 25%, rgb(255 255 255 / 0.6), transparent 70%);
+  }
+
   /* The admin sidebar and anything that has to sit on it. */
   .sidebar-surface {
     background: var(--sidebar);

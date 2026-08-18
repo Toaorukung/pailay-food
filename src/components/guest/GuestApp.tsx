@@ -9,10 +9,12 @@ import {
   MapPin,
   TriangleAlert,
   Globe,
+  ChevronRight,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 import { LOCALE_LABELS } from '@/i18n/dict';
 import { cn, Alert } from '@/components/ui';
+import { formatMoney } from '@/lib/money';
 import { ThemeToggle } from '@/components/theme';
 import { LOCALES, type MenuCatalog, type Locale } from '@/lib/types';
 import type { SessionSnapshot } from '@/lib/snapshot';
@@ -268,6 +270,31 @@ export function GuestApp({
           />
         )}
       </main>
+
+      {cartCount > 0 && tab === 'menu' && canOrder && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[4.4rem] z-30 px-4 pb-1">
+          <button
+            type="button"
+            onClick={() => setTab('cart')}
+            className={cn(
+              'pointer-events-auto mx-auto flex w-full max-w-3xl items-center gap-3',
+              'rounded-2xl bg-[var(--brand)] px-4 py-3.5 text-white',
+              'shadow-[var(--shadow-brand)] transition-transform',
+              'active:scale-[0.985] active:duration-75 animate-rise',
+            )}
+          >
+            <ShoppingBasket className="size-5 shrink-0" />
+            <span className="rounded-lg bg-white/25 px-2 py-0.5 text-sm font-bold tabular">
+              {cartCount}
+            </span>
+            <span className="text-sm font-semibold">{t('nav.cart')}</span>
+            <span className="ml-auto text-base font-bold tabular">
+              {formatMoney(snapshot.cartTotals.total, catalog.settings.currency)}
+            </span>
+            <ChevronRight className="size-5 shrink-0" />
+          </button>
+        </div>
+      )}
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] glass safe-bottom">
         <div className="mx-auto flex w-full max-w-3xl">

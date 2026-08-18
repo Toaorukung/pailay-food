@@ -9,8 +9,11 @@ import {
   TriangleAlert,
   CloudUpload,
   MapPinOff,
+  Scale,
+  CreditCard,
 } from 'lucide-react';
 import { useLive } from './adminApi';
+import { SalesChart } from './SalesChart';
 import { Badge, Card, Skeleton } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
 
@@ -75,7 +78,7 @@ export function DashboardClient() {
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <Stat
           icon={<Banknote className="size-5" />}
           label="ยอดขายวันนี้"
@@ -100,7 +103,22 @@ export function DashboardClient() {
           href="/admin/payments"
           tone={stats.pendingPayments > 0 ? 'danger' : 'neutral'}
         />
+        <Stat
+          icon={<Scale className="size-5" />}
+          label="รอชั่ง / แจ้งราคา"
+          value={String(stats.awaitingPricing)}
+          href="/admin/orders"
+          tone={stats.awaitingPricing > 0 ? 'warning' : 'neutral'}
+        />
+        <Stat
+          icon={<CreditCard className="size-5" />}
+          label="รอลูกค้าโอน"
+          value={String(stats.unpaidOrders)}
+          tone={stats.unpaidOrders > 0 ? 'warning' : 'neutral'}
+        />
       </div>
+
+      <SalesChart />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="space-y-3">
