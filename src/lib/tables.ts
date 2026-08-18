@@ -1,4 +1,4 @@
-import { kv } from './kv';
+import { kv, K } from './kv';
 import { loadTables } from './sheets/repo';
 import { standaloneMenu } from './demo';
 import { BUNDLED_TABLES } from '@/data/bundled-catalog';
@@ -12,7 +12,7 @@ import type { VillaTable } from './types';
  * first thing a guest does.
  */
 
-const CACHE_KEY = 'tables:cache';
+const CACHE_KEY = K.tables;
 const STALE_MS = 5 * 60 * 1000;
 const HOLD_SECONDS = 24 * 60 * 60;
 
