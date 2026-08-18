@@ -31,11 +31,11 @@ export const GET = handler(async (req: Request) => {
 
   // One round trip each, run in sequence so they do not mask one another.
   const redisWrite = await time(() =>
-    kv().set('diag:ping', Date.now(), { ex: 60 }),
+    kv().set(K.diagPing, Date.now(), { ex: 60 }),
   );
-  const redisRead = await time(() => kv().get('diag:ping'));
+  const redisRead = await time(() => kv().get(K.diagPing));
   const redisMulti = await time(async () => {
-    for (let i = 0; i < 5; i++) await kv().get('diag:ping');
+    for (let i = 0; i < 5; i++) await kv().get(K.diagPing);
   });
   const menuCache = await time(() => kv().get(K.menu));
 
