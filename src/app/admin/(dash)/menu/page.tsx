@@ -24,6 +24,18 @@ export default function MenuPage() {
     load();
   }, []);
 
+  // Category ids are opaque in the row data; the list needs the printed name.
+  const categoryLabel = useMemo(
+    () =>
+      new Map(
+        (catalog?.categories ?? []).map((c) => [
+          c.id,
+          `${c.icon ?? ''} ${c.name.th || c.name.en}`.trim(),
+        ]),
+      ),
+    [catalog],
+  );
+
   const fields = useMemo<FieldDef[] | null>(() => {
     if (!catalog) return null;
 
@@ -127,6 +139,9 @@ export default function MenuPage() {
           label: `${c.icon ?? ''} ${c.name.th || c.name.en}`.trim(),
         }))}
         filterOf={(row) => row.category_id}
+        groupOf={(row) =>
+          categoryLabel.get(row.category_id) ?? 'ไม่ระบุหมวดหมู่'
+        }
         columns={[
           {
             key: 'name',

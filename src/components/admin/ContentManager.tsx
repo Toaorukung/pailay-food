@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, Search, ImagePlus, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, ImagePlus, X, ChevronDown } from 'lucide-react';
 import { adminFetch } from './adminApi';
 import {
   Badge,
@@ -114,6 +114,11 @@ export interface ContentManagerProps {
   /** Chip row above the list. Paired with `filterOf`. */
   filters?: FilterDef[];
   filterOf?: (row: Row) => string;
+  /**
+   * Section heading for a row. A long list folds into collapsed sections, so
+   * 109 dishes read as 22 categories on a phone instead of a 9,700px scroll.
+   */
+  groupOf?: (row: Row) => string;
   addLabel?: string;
   emptyHint?: string;
   onChanged?: () => void;
@@ -131,6 +136,7 @@ export function ContentManager({
   columns,
   filters,
   filterOf,
+  groupOf,
   addLabel = 'เพิ่มใหม่',
   emptyHint,
   onChanged,
@@ -142,6 +148,7 @@ export function ContentManager({
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState<string>('');
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [opened, setOpened] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const res = await adminFetch<{ rows: Row[] }>(`/api/admin/content/${endpoint}`);
@@ -167,6 +174,42 @@ export function ContentManager({
       return hay.toLowerCase().includes(q);
     });
   }, [rows, query, filter, filterOf, searchOf]);
+
+  /**
+   * Rows in declaration order, cut into sections.
+   *
+   * Insertion order is the sheet's order, which is the order the kitchen and
+   * the guest menu already use — re-sorting here would make the admin list
+   * disagree with both.
+   */
+  const sections = useMemo(() => {
+    if (!groupOf) return [{ name: null as string | null, rows: filtered }];
+    const map = new Map<string, Row[]>();
+    for (const row of filtered) {
+      const name = groupOf(row) || 'อื่น ๆ';
+      const bucket = map.get(name);
+      if (bucket) bucket.push(row);
+      else map.set(name, [row]);
+    }
+    return [...map].map(([name, rows]) => ({ name: name as string | null, rows }));
+  }, [filtered, groupOf]);
+
+  /**
+   * Folding only earns its keep on a list too long to scan. Searching or
+   * picking a category is already a narrowing action, so the result of one
+   * stays open — collapsing what someone just asked to see would be perverse.
+   */
+  const folded = Boolean(groupOf) && !query.trim() && !filter && filtered.length > 40;
+  const isOpen = (name: string | null) => !folded || name === null || opened.has(name);
+
+  function toggleSection(name: string) {
+    setOpened((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
 
   async function patchRow(row: Row, changes: Record<string, unknown>) {
     setSavingId(row.id);
@@ -286,8 +329,22 @@ export function ContentManager({
                   <th className="w-px border-b border-[var(--line)] bg-[var(--surface-sunken)] px-4 py-2.5" />
                 </tr>
               </thead>
-              <tbody>
-                {filtered.map((row) => (
+              {sections.map((section) => (
+              <tbody key={section.name ?? '_'}>
+                {section.name !== null && (
+                  <tr>
+                    <td colSpan={columns.length + 1} className="p-0">
+                      <SectionHeader
+                        name={section.name}
+                        count={section.rows.length}
+                        open={isOpen(section.name)}
+                        foldable={folded}
+                        onToggle={() => toggleSection(section.name as string)}
+                      />
+                    </td>
+                  </tr>
+                )}
+                {isOpen(section.name) && section.rows.map((row) => (
                   <tr key={row.id} className="hover:bg-[var(--surface-sunken)]">
                     {columns.map((col) => (
                       <td
@@ -328,12 +385,29 @@ export function ContentManager({
                   </tr>
                 ))}
               </tbody>
+              ))}
             </table>
           </div>
         )}
 
-        <ul className={cn('space-y-2', columns && 'md:hidden')}>
-          {filtered.map((row) => (
+        <div className={cn('space-y-2', columns && 'md:hidden')}>
+        {sections.map((section) => (
+        <div key={section.name ?? '_'} className="space-y-2">
+        {section.name !== null && (
+          <SectionHeader
+            name={section.name}
+            count={section.rows.length}
+            open={isOpen(section.name)}
+            foldable={folded}
+            onToggle={() => toggleSection(section.name as string)}
+            rounded
+          />
+        )}
+        {/* Collapsed rows are not rendered at all rather than hidden with
+            CSS: 109 dishes is 109 subtrees React would build and diff on every
+            keystroke in the search box for nobody to look at. */}
+        <ul className="space-y-2">
+          {isOpen(section.name) && section.rows.map((row) => (
             <li key={row.id}>
               <Card className="flex items-center gap-3 p-3">
                 {row.image_url && (
@@ -381,6 +455,9 @@ export function ContentManager({
             </li>
           ))}
         </ul>
+        </div>
+        ))}
+        </div>
         </>
       )}
 
@@ -512,6 +589,54 @@ function RecordDialog({
         )}
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * A section heading that doubles as the fold control when folding is on. When
+ * it is off the same bar still labels the group, so the list does not change
+ * shape as a search narrows it.
+ */
+function SectionHeader({
+  name,
+  count,
+  open,
+  foldable,
+  onToggle,
+  rounded,
+}: {
+  name: string;
+  count: number;
+  open: boolean;
+  foldable: boolean;
+  onToggle: () => void;
+  rounded?: boolean;
+}) {
+  const body = (
+    <>
+      <span className="flex-1 text-left">{name}</span>
+      <span className="tabular text-xs muted">{count}</span>
+      {foldable && (
+        <ChevronDown
+          className={cn('size-4 transition-transform', open && 'rotate-180')}
+        />
+      )}
+    </>
+  );
+
+  const className = cn(
+    'flex w-full items-center gap-2 bg-[var(--surface-sunken)] px-4 py-2',
+    'text-sm font-semibold',
+    rounded && 'rounded-[var(--radius-card)] border border-[var(--line)]',
+    foldable && 'hover:bg-[var(--line)]',
+  );
+
+  return foldable ? (
+    <button type="button" onClick={onToggle} aria-expanded={open} className={className}>
+      {body}
+    </button>
+  ) : (
+    <div className={className}>{body}</div>
   );
 }
 
