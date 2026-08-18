@@ -9,6 +9,7 @@ import {
 } from '@/lib/sheets/crud';
 import { bustMenuCache } from '@/lib/menu-cache';
 import { bustTablesCache, getTables } from '@/lib/tables';
+import { slugify, fallbackCode, newVillaCode } from '@/lib/villa-link';
 import {
   menuItemSchema,
   categorySchema,
@@ -104,15 +105,37 @@ export const POST = handler(async (req: Request, { params }: Params) => {
   const existingId = String(record.id ?? '').trim();
   const id = existingId || `${target.prefix}-${shortCode(5).toLowerCase()}`;
 
-  // Two villas sharing a slug would make /<slug>/<code> ambiguous, and a
-  // guest could land on the wrong villa's bill. Refuse rather than resolve it
-  // arbitrarily at read time.
-  if (target.tab === TABS.Tables && typeof record.slug === 'string' && record.slug) {
+  if (target.tab === TABS.Tables) {
+    // Blank link fields are resolved at read time, which leaves the printed
+    // address invisible in the sheet and unbuildable by the admin list.
+    // Settle them here so what is stored is exactly what gets printed.
+    //
+    // An existing villa gets the same code the runtime was already deriving,
+    // so a QR sticker already on a wall keeps working. Only a brand new villa
+    // gets a fresh random one.
+    const chosenSlug = String(record.slug ?? '').trim();
+    if (!chosenSlug) {
+      record.slug = slugify(String(record.villa || record.label || id));
+    }
+    if (!record.qr_code) {
+      record.qr_code = existingId ? fallbackCode(id) : newVillaCode();
+    }
+
+    // Two villas sharing a slug would make /<slug>/<code> ambiguous, and a
+    // guest could land on the wrong villa's bill.
     const villas = await getTables();
     if (villas.some((v) => v.slug === record.slug && v.id !== id)) {
-      return fail(`ชื่อลิงก์ "${record.slug}" ถูกใช้กับวิลล่าอื่นแล้ว`, 409, {
-        code: 'SLUG_TAKEN',
-      });
+      // A slug the operator typed is their decision to correct.
+      if (chosenSlug) {
+        return fail(`ชื่อลิงก์ "${record.slug}" ถูกใช้กับวิลล่าอื่นแล้ว`, 409, {
+          code: 'SLUG_TAKEN',
+        });
+      }
+      // A derived one is not: slugify keeps only ASCII, so every villa named
+      // in Thai reduces to the same fallback. Refusing to save a villa over a
+      // name the operator never chose would be a dead end, and the id is
+      // unique by construction.
+      record.slug = `${record.slug}-${id.replace(/^v-/, '')}`;
     }
   }
 

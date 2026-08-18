@@ -3,7 +3,17 @@
 import Link from 'next/link';
 import { Printer, Info } from 'lucide-react';
 import { ContentManager, type FieldDef } from '@/components/admin/ContentManager';
+import { CopyButton } from '@/components/admin/CopyButton';
 import { Button, Card } from '@/components/ui';
+
+/**
+ * The address printed on the sticker. Shown as a path and copied as an
+ * absolute URL: `origin` does not exist while the server renders, and reading
+ * it at click time keeps the markup identical on both sides of hydration.
+ */
+function villaPath(row: Record<string, string>): string | null {
+  return row.slug && row.qr_code ? `/${row.slug}/${row.qr_code}` : null;
+}
 
 const FIELDS: FieldDef[] = [
   { key: 'label', label: 'ชื่อที่แสดง', type: 'text', hint: 'เช่น Villa 3 — Pool Deck' },
@@ -66,6 +76,15 @@ export default function TablesPage() {
         fields={FIELDS}
         labelOf={(row) => row.label || row.villa || row.id}
         searchOf={(row) => [row.label, row.villa, row.id].join(' ')}
+        rowActions={(row) => {
+          const path = villaPath(row);
+          return path ? (
+            <CopyButton
+              value={() => `${window.location.origin}${path}`}
+              label="คัดลอกลิงก์"
+            />
+          ) : null;
+        }}
         summaryOf={(row) => (
           <>
             {row.lat && row.lng ? (
@@ -76,6 +95,11 @@ export default function TablesPage() {
               <span className="text-[var(--warning)]">ยังไม่ตั้งพิกัด</span>
             )}
             <span>รัศมี {row.radius_m || 300} ม.</span>
+            {villaPath(row) ? (
+              <span className="tabular text-[var(--brand)]">{villaPath(row)}</span>
+            ) : (
+              <span className="text-[var(--warning)]">ยังไม่มีลิงก์ — กดแก้ไขแล้วบันทึก</span>
+            )}
           </>
         )}
         emptyHint="เพิ่มวิลล่าแรก แล้วกดพิมพ์ QR ไปติดในห้อง"

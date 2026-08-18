@@ -97,6 +97,8 @@ export interface ContentManagerProps {
   searchOf?: (row: Row) => string;
   /** Extra read-only summary rendered on each list row. */
   summaryOf?: (row: Row) => React.ReactNode;
+  /** Extra controls beside edit and delete on each row. */
+  rowActions?: (row: Row) => React.ReactNode;
   /** Supply to get a table layout from md up. */
   columns?: ColumnDef[];
   /** Chip row above the list. Paired with `filterOf`. */
@@ -115,6 +117,7 @@ export function ContentManager({
   labelOf,
   searchOf,
   summaryOf,
+  rowActions,
   columns,
   filters,
   filterOf,
@@ -293,6 +296,7 @@ export function ContentManager({
                       </td>
                     ))}
                     <td className="whitespace-nowrap border-b border-[var(--line)] px-4 py-2.5 text-right">
+                      {rowActions?.(row)}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -343,7 +347,8 @@ export function ContentManager({
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-1">
+                <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                  {rowActions?.(row)}
                   <Button
                     variant="ghost"
                     size="sm"
