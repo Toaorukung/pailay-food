@@ -24,7 +24,9 @@ interface SessionRow {
   allergyProfile: string[];
   geoStatus: string;
   distanceM: number | null;
-  billTotal: number;
+  orderCount: number;
+  paidTotal: number;
+  outstandingTotal: number;
 }
 
 export default function SessionsPage() {
@@ -67,7 +69,7 @@ export default function SessionsPage() {
       <header>
         <h1 className="text-xl font-semibold">เซสชันที่เปิดอยู่</h1>
         <p className="text-sm muted">
-          ปิดเซสชันเมื่อแขกเช็คเอาต์แล้วหรือชำระเงินสดที่เคาน์เตอร์ —
+          จบการเข้าพักเมื่อแขกเช็คเอาต์แล้วหรือชำระเงินสดที่เคาน์เตอร์ —
           หลังปิด ลิงก์เดิมจะสั่งอาหารไม่ได้และการสแกนครั้งถัดไปจะเริ่มบิลใหม่
         </p>
       </header>
@@ -108,7 +110,7 @@ export default function SessionsPage() {
                     {s.guestName ? ` · ${s.guestName}` : ''}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1.5">
-                    {s.status === 'LOCKED' && <Badge tone="brand">รอชำระเงิน</Badge>}
+                    
                     {s.allergyProfile.length > 0 && (
                       <Badge tone="danger">
                         <TriangleAlert className="size-3" />
@@ -130,7 +132,7 @@ export default function SessionsPage() {
                 <div className="text-right">
                   <p className="text-xs muted">ยอดสะสม</p>
                   <p className="text-lg font-bold tabular">
-                    {formatMoney(s.billTotal)}
+                    {formatMoney(s.paidTotal)}
                   </p>
                 </div>
 
@@ -143,7 +145,7 @@ export default function SessionsPage() {
                   }}
                 >
                   <XCircle className="size-4" />
-                  ปิดเซสชัน
+                  จบการเข้าพัก
                 </Button>
               </Card>
             </li>
@@ -154,10 +156,10 @@ export default function SessionsPage() {
       <Dialog
         open={Boolean(closing)}
         onOpenChange={(open) => !open && setClosing(null)}
-        title="ปิดเซสชัน"
+        title="จบการเข้าพัก"
         description={
           closing
-            ? `${closing.villa || closing.tableLabel} · ยอดสะสม ${formatMoney(closing.billTotal)}`
+            ? `${closing.villa || closing.tableLabel} · ยอดสะสม ${formatMoney(closing.paidTotal)}`
             : undefined
         }
         footer={
@@ -166,7 +168,7 @@ export default function SessionsPage() {
               ยกเลิก
             </Button>
             <Button variant="danger" full loading={busy} onClick={forceClose}>
-              ปิดเซสชัน
+              จบการเข้าพัก
             </Button>
           </>
         }

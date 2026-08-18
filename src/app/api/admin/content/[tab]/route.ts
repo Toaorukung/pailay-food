@@ -21,6 +21,7 @@ import {
 import { audit } from '@/lib/audit';
 import { clientIp } from '@/lib/ratelimit';
 import { shortCode } from '@/lib/ids';
+import { sheetsConfigured } from '@/lib/demo';
 import { handler, fail, ok } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -83,6 +84,15 @@ export const POST = handler(async (req: Request, { params }: Params) => {
   const auth = await requireAdmin(req, 'MANAGER');
   if (!auth.ok) return auth.response;
 
+  if (!sheetsConfigured()) {
+    return fail(
+      'แก้ไขข้อมูลไม่ได้เพราะยังไม่ได้เชื่อม Google Sheet — เมนูตอนนี้มาจากไฟล์ที่ฝังมากับแอป',
+      503,
+      { code: 'SHEETS_NOT_CONFIGURED' },
+    );
+  }
+
+
   const { tab } = await params;
   const target = resolve(tab);
   if (!target) return fail('ไม่รู้จักหมวดข้อมูลนี้', 404);
@@ -113,6 +123,15 @@ export const POST = handler(async (req: Request, { params }: Params) => {
 export const DELETE = handler(async (req: Request, { params }: Params) => {
   const auth = await requireAdmin(req, 'MANAGER');
   if (!auth.ok) return auth.response;
+
+  if (!sheetsConfigured()) {
+    return fail(
+      'แก้ไขข้อมูลไม่ได้เพราะยังไม่ได้เชื่อม Google Sheet — เมนูตอนนี้มาจากไฟล์ที่ฝังมากับแอป',
+      503,
+      { code: 'SHEETS_NOT_CONFIGURED' },
+    );
+  }
+
 
   const { tab } = await params;
   const target = resolve(tab);

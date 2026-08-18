@@ -53,7 +53,7 @@ export default function AuditPage() {
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] text-left muted">
+              <tr className="border-b border-[var(--line)] text-left muted">
                 <th className="p-3 font-medium">เวลา</th>
                 <th className="p-3 font-medium">ผู้ใช้</th>
                 <th className="p-3 font-medium">การกระทำ</th>
@@ -63,7 +63,7 @@ export default function AuditPage() {
             </thead>
             <tbody>
               {entries.map((e) => (
-                <tr key={e.id} className="border-b border-[var(--border)] last:border-0">
+                <tr key={e.id} className="border-b border-[var(--line)] last:border-0">
                   <td className="whitespace-nowrap p-3 tabular muted">
                     {new Date(e.at).toLocaleString('th-TH', {
                       day: '2-digit',

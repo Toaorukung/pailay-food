@@ -1,12 +1,11 @@
 import { kv, K } from './kv';
-import { paymentId as newPaymentId } from './ids';
 import { persist } from './sheets/queue';
 import { TABS } from './sheets/schema';
-import { closeSession, updateSession } from './session';
-import type { GuestSession, Order, Payment } from './types';
+import { markAwaitingPayment, markOrderPaid, markOrderUnpaid } from './orders';
+import type { Payment } from './types';
 
 /**
- * Payment is PromptPay transfer plus a photo of the slip, verified by a human.
+ * One payment per order, settled before the kitchen starts.
  *
  * Honest limitation: a doctored slip gets through if staff approve carelessly.
  * The design leans on making a mismatch obvious rather than on detection — the
@@ -22,12 +21,12 @@ export async function getPayment(id: string): Promise<Payment | null> {
   return (await kv().get<Payment>(K.payment(id)).catch(() => null)) ?? null;
 }
 
-async function savePayment(p: Payment): Promise<Payment> {
+export async function savePayment(p: Payment): Promise<Payment> {
   await kv().set(K.payment(p.id), p, { ex: PAYMENT_TTL_SECONDS });
   await persist(TABS.Payments, p.id, {
     payment_id: p.id,
     session_id: p.sessionId,
-    order_ids: p.orderIds.join(','),
+    order_ids: p.orderId,
     amount: p.amount,
     method: p.method,
     status: p.status,
@@ -41,38 +40,22 @@ async function savePayment(p: Payment): Promise<Payment> {
 }
 
 /**
- * Opening a bill. The session is locked so the total cannot move after the
- * guest has seen the QR — otherwise they could add a dish post-scan and pay
- * the old, smaller amount.
+ * Follows a repriced order. A payment raised against an order containing
+ * something sold by weight starts at whatever the priced lines came to; once
+ * the scale has spoken, the amount has to match or the guest transfers the
+ * wrong figure and the slip fails review for no good reason.
  */
-export async function createPayment(
-  session: GuestSession,
-  orders: Order[],
+export async function updatePaymentAmount(
+  id: string,
   amount: number,
-): Promise<Payment> {
-  const payment: Payment = {
-    id: newPaymentId(),
-    sessionId: session.id,
-    tableLabel: session.tableLabel,
-    villa: session.villa,
-    orderIds: orders.map((o) => o.id),
-    amount,
-    method: 'promptpay',
-    status: 'PENDING',
-    slipUrl: null,
-    slipUploadedAt: null,
-    verifiedBy: null,
-    verifiedAt: null,
-    rejectReason: null,
-    createdAt: new Date().toISOString(),
-  };
-
-  await savePayment(payment);
-  await updateSession(session.id, {
-    status: 'LOCKED',
-    activePaymentId: payment.id,
-  });
-  return payment;
+): Promise<Payment | null> {
+  const payment = await getPayment(id);
+  if (!payment) return null;
+  // Never move the goalposts after the guest has paid.
+  if (payment.status === 'APPROVED' || payment.status === 'PENDING_REVIEW') {
+    return payment;
+  }
+  return savePayment({ ...payment, amount });
 }
 
 export async function attachSlip(
@@ -83,20 +66,28 @@ export async function attachSlip(
   if (!payment) return null;
   if (payment.status === 'APPROVED') return payment;
 
-  const next: Payment = {
+  const next = await savePayment({
     ...payment,
     slipUrl,
     slipUploadedAt: new Date().toISOString(),
     status: 'PENDING_REVIEW',
     rejectReason: null,
-  };
-  await savePayment(next);
+  });
+
   await kv()
     .zadd(K.pendingPayments, { score: Date.now(), member: id })
     .catch(() => {});
+  await markAwaitingPayment(payment.orderId);
   return next;
 }
 
+/**
+ * Staff confirm the money arrived.
+ *
+ * This is the gate the whole flow turns on: the order becomes visible to the
+ * kitchen here and nowhere else. The session is deliberately left open — the
+ * villa carries on ordering, and only /admin/sessions ends it.
+ */
 export async function approvePayment(
   id: string,
   adminName: string,
@@ -105,19 +96,16 @@ export async function approvePayment(
   if (!payment) return null;
   if (payment.status === 'APPROVED') return payment;
 
-  const next: Payment = {
+  const next = await savePayment({
     ...payment,
     status: 'APPROVED',
     verifiedBy: adminName,
     verifiedAt: new Date().toISOString(),
     rejectReason: null,
-  };
-  await savePayment(next);
-  await kv().zrem(K.pendingPayments, id).catch(() => {});
+  });
 
-  // This is the moment the guest's link dies. Everything after here is a
-  // read-only receipt; ordering again requires scanning the villa QR.
-  await closeSession(payment.sessionId);
+  await kv().zrem(K.pendingPayments, id).catch(() => {});
+  await markOrderPaid(payment.orderId);
   return next;
 }
 
@@ -130,21 +118,17 @@ export async function rejectPayment(
   if (!payment) return null;
   if (payment.status === 'APPROVED') return payment;
 
-  const next: Payment = {
+  const next = await savePayment({
     ...payment,
     status: 'REJECTED',
     verifiedBy: adminName,
     verifiedAt: new Date().toISOString(),
     rejectReason: reason,
-  };
-  await savePayment(next);
-  await kv().zrem(K.pendingPayments, id).catch(() => {});
+  });
 
-  // Unlock so the guest can retry or add more food — but deliberately keep
-  // `activePaymentId` pointing at the rejected record. Clearing it would drop
-  // the payment out of the session snapshot, and the guest would never see the
-  // reason their slip was refused.
-  await updateSession(payment.sessionId, { status: 'OPEN' });
+  await kv().zrem(K.pendingPayments, id).catch(() => {});
+  // Hand the order back so the guest can transfer again and re-upload.
+  await markOrderUnpaid(payment.orderId);
   return next;
 }
 
@@ -160,4 +144,13 @@ export async function pendingPayments(): Promise<Payment[]> {
     .filter((p): p is Payment => p !== null && p !== undefined)
     .filter((p) => p.status === 'PENDING_REVIEW')
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+/** Every payment raised for a session, for the guest's own history. */
+export async function sessionPayments(ids: string[]): Promise<Payment[]> {
+  if (ids.length === 0) return [];
+  const rows: (Payment | null)[] = await kv()
+    .mget<(Payment | null)[]>(...ids.map((id) => K.payment(id)))
+    .catch(() => [] as (Payment | null)[]);
+  return rows.filter((p): p is Payment => p !== null && p !== undefined);
 }

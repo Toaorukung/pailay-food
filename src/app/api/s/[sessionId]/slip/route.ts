@@ -1,10 +1,10 @@
-import { put } from '@vercel/blob';
 import { requireSession, guardResponse } from '@/lib/session';
 import { getPayment, attachSlip } from '@/lib/payments';
+import { getOrder } from '@/lib/orders';
 import { processUpload, UploadError, MAX_UPLOAD_BYTES } from '@/lib/images';
 import { rateLimit } from '@/lib/ratelimit';
 import { publicPayment } from '@/lib/snapshot';
-import { randomId } from '@/lib/ids';
+import { putImage } from '@/lib/storage';
 import { handler, fail, ok } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ type Params = { params: Promise<{ sessionId: string }> };
  */
 export const POST = handler(async (req: Request, { params }: Params) => {
   const { sessionId } = await params;
-  const guard = await requireSession(req, sessionId, { allowLocked: true });
+  const guard = await requireSession(req, sessionId);
   if (!guard.ok) return guardResponse(guard);
 
   const limit = await rateLimit('slip', sessionId);
@@ -31,13 +31,23 @@ export const POST = handler(async (req: Request, { params }: Params) => {
     return fail('อัปโหลดบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่', 429);
   }
 
-  const paymentId = guard.session.activePaymentId;
-  if (!paymentId) return fail('ยังไม่ได้เริ่มการชำระเงิน', 400);
+  const orderId = new URL(req.url).searchParams.get('orderId');
+  if (!orderId) return fail('ต้องระบุออเดอร์', 400);
 
-  const payment = await getPayment(paymentId);
+  const order = await getOrder(orderId);
+  // Scoped to the caller's own session: a guessed order id from another villa
+  // must not become a slot to upload into.
+  if (!order || order.sessionId !== sessionId) {
+    return fail('ไม่พบออเดอร์นี้', 404);
+  }
+  if (order.status === 'AWAITING_PRICING') {
+    return fail('รอพนักงานแจ้งราคาก่อนชำระเงิน', 409);
+  }
+
+  const payment = await getPayment(order.paymentId);
   if (!payment) return fail('ไม่พบรายการชำระเงิน', 404);
   if (payment.status === 'APPROVED') {
-    return fail('รายการนี้ชำระเงินเรียบร้อยแล้ว', 409);
+    return fail('ออเดอร์นี้ชำระเงินเรียบร้อยแล้ว', 409);
   }
 
   // Reject oversized bodies before reading them into memory.
@@ -67,19 +77,16 @@ export const POST = handler(async (req: Request, { params }: Params) => {
     return fail('ไม่สามารถประมวลผลรูปภาพนี้ได้ กรุณาลองรูปอื่น', 400);
   }
 
-  // Random path segment on top of Blob's own random suffix: the URL is the
-  // only thing protecting the image at rest, so it must not be derivable from
-  // the payment id.
-  const key = `slips/${payment.id}/${randomId(12)}.${processed.extension}`;
+  // The stored location is unguessable and never reaches the guest's browser;
+  // staff read it back through an authenticated proxy.
+  const stored = await putImage(
+    'slips',
+    processed.data,
+    processed.contentType,
+    processed.extension,
+  );
 
-  const blob = await put(key, processed.data, {
-    access: 'public',
-    contentType: processed.contentType,
-    addRandomSuffix: true,
-    cacheControlMaxAge: 0,
-  });
-
-  const updated = await attachSlip(payment.id, blob.url);
+  const updated = await attachSlip(payment.id, stored.url);
   if (!updated) return fail('บันทึกสลิปไม่สำเร็จ', 500);
 
   return ok({ payment: publicPayment(updated) });

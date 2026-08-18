@@ -4,7 +4,12 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Loader2, X } from 'lucide-react';
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react';
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  TextareaHTMLAttributes,
+} from 'react';
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
@@ -17,19 +22,24 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    'bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 shadow-sm',
+    'bg-[var(--brand)] text-[var(--text-on-brand)] shadow-[var(--shadow-brand)] ' +
+    'hover:bg-[var(--brand-hover)]',
   secondary:
-    'bg-[var(--surface-sunken)] text-[var(--text)] hover:bg-[var(--border)] border border-[var(--border)]',
+    'bg-[var(--surface)] text-[var(--text)] border border-[var(--line-strong)] ' +
+    'shadow-[var(--shadow-xs)] hover:bg-[var(--surface-sunken)]',
   ghost: 'text-[var(--text)] hover:bg-[var(--surface-sunken)]',
-  danger: 'bg-[var(--danger)] text-white hover:opacity-90',
-  success: 'bg-[var(--success)] text-white hover:opacity-90',
+  danger:
+    'bg-[var(--danger)] text-white shadow-[var(--shadow-sm)] hover:brightness-110',
+  success:
+    'bg-[var(--success)] text-white shadow-[var(--shadow-sm)] hover:brightness-110',
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
-  // 44px minimum height everywhere: these are pressed with thumbs, often wet.
+  // 36px is the floor for a dense admin row; guest controls use md or lg.
+  // These are pressed with thumbs, often wet, so nothing goes smaller.
   sm: 'h-9 px-3 text-sm rounded-lg gap-1.5',
   md: 'h-11 px-4 text-[15px] rounded-xl gap-2',
-  lg: 'h-14 px-6 text-base rounded-2xl gap-2.5',
+  lg: 'h-[3.25rem] px-6 text-base rounded-2xl gap-2.5',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -54,15 +64,19 @@ export function Button({
       {...rest}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center font-medium transition-colors select-none',
-        'disabled:opacity-50 disabled:pointer-events-none',
+        'inline-flex select-none items-center justify-center font-semibold',
+        'transition-[background-color,box-shadow,transform] duration-150',
+        // A press that moves confirms the tap on a touchscreen that has no
+        // hover state to fall back on.
+        'active:scale-[0.985] active:duration-75',
+        'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none',
         BUTTON_VARIANTS[variant],
         BUTTON_SIZES[size],
         full && 'w-full',
         className,
       )}
     >
-      {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
+      {loading && <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />}
       {children}
     </button>
   );
@@ -86,7 +100,7 @@ type Tone = 'neutral' | 'brand' | 'danger' | 'warning' | 'success';
 
 const BADGE_TONES: Record<Tone, string> = {
   neutral: 'bg-[var(--surface-sunken)] text-[var(--text-muted)]',
-  brand: 'bg-brand-50 text-brand-700 dark:bg-brand-900 dark:text-brand-100',
+  brand: 'bg-[var(--brand-soft)] text-[var(--brand-soft-text)]',
   danger: 'bg-[var(--danger-soft)] text-[var(--danger)]',
   warning: 'bg-[var(--warning-soft)] text-[var(--warning)]',
   success: 'bg-[var(--success-soft)] text-[var(--success)]',
@@ -104,7 +118,8 @@ export function Badge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium leading-none',
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-1',
+        'text-xs font-semibold leading-none',
         BADGE_TONES[tone],
         className,
       )}
@@ -113,6 +128,14 @@ export function Badge({
     </span>
   );
 }
+
+const ALERT_BORDERS: Record<Tone, string> = {
+  neutral: 'border-[var(--line-strong)]',
+  brand: 'border-[var(--brand)]',
+  danger: 'border-[var(--danger)]',
+  warning: 'border-[var(--warning)]',
+  success: 'border-[var(--success)]',
+};
 
 export function Alert({
   tone = 'warning',
@@ -125,20 +148,13 @@ export function Alert({
   children?: ReactNode;
   className?: string;
 }) {
-  const border: Record<Tone, string> = {
-    neutral: 'border-[var(--border)]',
-    brand: 'border-brand-300',
-    danger: 'border-[var(--danger)]',
-    warning: 'border-[var(--warning)]',
-    success: 'border-[var(--success)]',
-  };
   return (
     <div
       role={tone === 'danger' ? 'alert' : 'status'}
       className={cn(
-        'rounded-xl border-l-4 p-3 text-sm',
+        'rounded-xl border-l-4 px-3.5 py-3 text-sm',
         BADGE_TONES[tone],
-        border[tone],
+        ALERT_BORDERS[tone],
         className,
       )}
     >
@@ -151,10 +167,12 @@ export function Alert({
 // ── Form controls ───────────────────────────────────────────
 
 const FIELD_BASE =
-  'w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-3.5 py-2.5 ' +
-  'text-[var(--text)] placeholder:text-[var(--text-muted)] transition-colors ' +
-  'focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 ' +
-  'disabled:opacity-60';
+  'w-full rounded-xl border border-[var(--line-strong)] bg-[var(--surface)] ' +
+  'px-3.5 py-2.5 text-[var(--text)] placeholder:text-[var(--text-subtle)] ' +
+  'shadow-[var(--shadow-xs)] transition-[border-color,box-shadow] ' +
+  'focus:border-[var(--brand)] focus:outline-none ' +
+  'focus:ring-4 focus:ring-[var(--brand-ring)] ' +
+  'disabled:opacity-60 disabled:bg-[var(--surface-sunken)]';
 
 export function Input({
   className,
@@ -195,10 +213,12 @@ export function Field({
 }) {
   return (
     <label className="block space-y-1.5">
-      {label && <span className="text-sm font-medium">{label}</span>}
+      {label && <span className="text-sm font-semibold">{label}</span>}
       {children}
       {error ? (
-        <span className="block text-xs text-[var(--danger)]">{error}</span>
+        <span className="block text-xs font-medium text-[var(--danger)]">
+          {error}
+        </span>
       ) : hint ? (
         <span className="block text-xs muted">{hint}</span>
       ) : null}
@@ -214,15 +234,15 @@ export function Checkbox({
   return (
     <label
       className={cn(
-        'flex cursor-pointer items-start gap-3 rounded-xl p-3 transition-colors',
-        'hover:bg-[var(--surface-sunken)]',
+        'flex cursor-pointer items-start gap-3 rounded-xl p-3',
+        'transition-colors hover:bg-[var(--surface-sunken)]',
         className,
       )}
     >
       <input
         type="checkbox"
         {...rest}
-        className="mt-0.5 size-5 shrink-0 accent-[var(--color-brand-600)]"
+        className="mt-0.5 size-5 shrink-0 accent-[var(--brand)]"
       />
       <span className="text-sm leading-snug">{label}</span>
     </label>
@@ -249,21 +269,31 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px]" />
+        <DialogPrimitive.Overlay
+          className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[3px] animate-fade"
+        />
         <DialogPrimitive.Content
           className={cn(
-            'fixed z-50 flex flex-col gap-4 bg-[var(--surface-raised)] p-5 shadow-lift',
+            'fixed z-50 flex flex-col gap-4 bg-[var(--surface)]',
+            'shadow-[var(--shadow-lg)]',
             // Bottom sheet on phones, centred dialog from sm up. Thumbs reach
             // the bottom of a phone screen; they do not reach the middle.
-            'inset-x-0 bottom-0 max-h-[88svh] overflow-y-auto rounded-t-3xl',
-            'sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(30rem,92vw)]',
-            'sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl',
-            'animate-rise',
+            'inset-x-0 bottom-0 max-h-[90svh] overflow-y-auto',
+            'rounded-t-[1.75rem] px-5 pb-6 pt-3 animate-sheet',
+            'sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2',
+            'sm:w-[min(32rem,92vw)] sm:-translate-x-1/2 sm:-translate-y-1/2',
+            'sm:rounded-2xl sm:p-6 sm:animate-rise',
           )}
         >
+          {/* Grab handle: signals "this sheet slides" on touch. */}
+          <div
+            aria-hidden
+            className="mx-auto h-1 w-10 shrink-0 rounded-full bg-[var(--line-strong)] sm:hidden"
+          />
+
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
-              <DialogPrimitive.Title className="text-lg font-semibold">
+              <DialogPrimitive.Title className="text-lg font-bold">
                 {title}
               </DialogPrimitive.Title>
               {description && (
@@ -273,12 +303,16 @@ export function Dialog({
               )}
             </div>
             <DialogPrimitive.Close
-              className="-m-1 rounded-lg p-1 muted hover:bg-[var(--surface-sunken)]"
-              aria-label="Close"
+              className={cn(
+                '-m-1 shrink-0 rounded-lg p-1.5 muted transition-colors',
+                'hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]',
+              )}
+              aria-label="ปิด"
             >
               <X className="size-5" />
             </DialogPrimitive.Close>
           </div>
+
           {children}
           {footer && <div className="flex gap-2 pt-1">{footer}</div>}
         </DialogPrimitive.Content>
@@ -306,21 +340,39 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-      {icon && <div className="muted">{icon}</div>}
-      <p className="text-base font-medium">{title}</p>
+      {icon && (
+        <div className="flex size-14 items-center justify-center rounded-2xl bg-[var(--surface-sunken)] text-[var(--text-subtle)]">
+          {icon}
+        </div>
+      )}
+      <p className="text-base font-semibold">{title}</p>
       {body && <p className="max-w-sm text-sm muted">{body}</p>}
-      {action}
+      {action && <div className="pt-1">{action}</div>}
     </div>
   );
 }
 
 export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn('skeleton', className)} />;
+}
+
+/** Page heading with an optional right-hand slot for actions. */
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
-    <div
-      className={cn(
-        'animate-pulse rounded-lg bg-[var(--surface-sunken)]',
-        className,
-      )}
-    />
+    <header className="flex flex-wrap items-end justify-between gap-3 pb-1">
+      <div className="min-w-0">
+        <h1 className="text-xl font-bold sm:text-2xl">{title}</h1>
+        {subtitle && <p className="text-sm muted">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+    </header>
   );
 }

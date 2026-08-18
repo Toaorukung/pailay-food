@@ -53,6 +53,7 @@ export const HEADERS: Record<TabName, string[]> = {
   Sessions: [
     'session_id', 'table_id', 'opened_at', 'closed_at', 'status',
     'guest_name', 'allergy_profile', 'geo_status', 'distance_m', 'locale',
+    'closed_by',
   ],
   Orders: [
     'order_id', 'session_id', 'table_id', 'created_at', 'status',

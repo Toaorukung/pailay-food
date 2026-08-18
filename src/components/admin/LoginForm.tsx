@@ -50,15 +50,15 @@ export function LoginForm({
         <>
           <a
             href="/api/admin/auth/google/start"
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border)] text-[15px] font-medium hover:bg-[var(--surface-sunken)]"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] text-[15px] font-medium hover:bg-[var(--surface-sunken)]"
           >
             <GoogleMark />
             เข้าสู่ระบบด้วย Google
           </a>
           <div className="flex items-center gap-3 text-xs muted">
-            <span className="h-px flex-1 bg-[var(--border)]" />
+            <span className="h-px flex-1 bg-[var(--line)]" />
             หรือ
-            <span className="h-px flex-1 bg-[var(--border)]" />
+            <span className="h-px flex-1 bg-[var(--line)]" />
           </div>
         </>
       )}

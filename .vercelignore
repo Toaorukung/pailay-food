@@ -1,0 +1,17 @@
+# Secrets live in Vercel's own environment variables, never in the upload.
+.env
+.env.local
+.env*.local
+*service-account*.json
+gcp-key.json
+
+# Not needed at runtime.
+node_modules
+.next
+tests
+playwright-report
+test-results
+
+# Source artwork for the menu boards. `public/notice/service.jpg` is the copy
+# the app actually serves, and that one is not ignored.
+food/

@@ -17,7 +17,7 @@ type Params = { params: Promise<{ sessionId: string }> };
  */
 export const POST = handler(async (req: Request, { params }: Params) => {
   const { sessionId } = await params;
-  const guard = await requireSession(req, sessionId, { allowLocked: true });
+  const guard = await requireSession(req, sessionId);
   if (!guard.ok) return guardResponse(guard);
 
   const body = await parseBody(req, geoReportSchema);
@@ -35,7 +35,7 @@ export const POST = handler(async (req: Request, { params }: Params) => {
 /** The browser denied permission or timed out — record that, do not block. */
 export const DELETE = handler(async (req: Request, { params }: Params) => {
   const { sessionId } = await params;
-  const guard = await requireSession(req, sessionId, { allowLocked: true });
+  const guard = await requireSession(req, sessionId);
   if (!guard.ok) return guardResponse(guard);
 
   await updateSession(sessionId, { geoStatus: 'DENIED', distanceM: null });

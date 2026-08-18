@@ -432,7 +432,7 @@ function FieldInput({
                     'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
                     active
                       ? 'border-brand-500 bg-brand-600 text-white'
-                      : 'border-[var(--border)]',
+                      : 'border-[var(--line)]',
                   )}
                 >
                   {o.label}
@@ -485,7 +485,7 @@ function FieldInput({
                 </button>
               </div>
             ) : (
-              <div className="flex size-20 items-center justify-center rounded-xl border border-dashed border-[var(--border)] muted">
+              <div className="flex size-20 items-center justify-center rounded-xl border border-dashed border-[var(--line)] muted">
                 <ImagePlus className="size-6" />
               </div>
             )}

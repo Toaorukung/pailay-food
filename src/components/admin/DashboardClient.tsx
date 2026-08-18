@@ -111,7 +111,7 @@ export function DashboardClient() {
           {openSessions.length === 0 ? (
             <p className="text-sm muted">ยังไม่มีแขกเปิดเซสชัน</p>
           ) : (
-            <ul className="divide-y divide-[var(--border)] text-sm">
+            <ul className="divide-y divide-[var(--line)] text-sm">
               {openSessions.slice(0, 8).map((s) => (
                 <li key={s.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
@@ -140,7 +140,7 @@ export function DashboardClient() {
                         นอกพื้นที่
                       </Badge>
                     )}
-                    {s.status === 'LOCKED' && <Badge tone="brand">รอชำระ</Badge>}
+                    
                   </div>
                 </li>
               ))}
@@ -162,7 +162,7 @@ export function DashboardClient() {
           {orders.length === 0 ? (
             <p className="text-sm muted">ยังไม่มีออเดอร์</p>
           ) : (
-            <ul className="divide-y divide-[var(--border)] text-sm">
+            <ul className="divide-y divide-[var(--line)] text-sm">
               {orders.slice(0, 8).map((o) => (
                 <li key={o.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">

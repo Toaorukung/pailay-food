@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { translate, type StringKey } from './dict';
+import { LOCALE_COOKIE } from './locale';
 import { DEFAULT_LOCALE, type Locale, type Localized } from '@/lib/types';
 
 interface I18nValue {
@@ -53,8 +54,5 @@ export function useI18n(): I18nValue {
   return ctx;
 }
 
-export const LOCALE_COOKIE = 'pf_locale';
-
-export function parseLocale(raw: string | undefined): Locale {
-  return raw === 'en' || raw === 'zh' || raw === 'th' ? raw : DEFAULT_LOCALE;
-}
+// Re-exported for client components that already import them from here.
+export { LOCALE_COOKIE, parseLocale } from './locale';

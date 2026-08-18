@@ -1,5 +1,7 @@
 import { kv } from './kv';
 import { loadTables } from './sheets/repo';
+import { standaloneMenu } from './demo';
+import { BUNDLED_TABLES } from '@/data/bundled-catalog';
 import type { VillaTable } from './types';
 
 /**
@@ -39,7 +41,7 @@ export async function getTables(): Promise<VillaTable[]> {
 }
 
 export async function refreshTables(): Promise<VillaTable[]> {
-  const tables = await loadTables();
+  const tables = standaloneMenu() ? BUNDLED_TABLES : await loadTables();
   const entry: Entry = { tables, staleAt: Date.now() + STALE_MS };
   memo = entry;
   await kv().set(CACHE_KEY, entry, { ex: HOLD_SECONDS }).catch(() => {});

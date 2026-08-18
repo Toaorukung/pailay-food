@@ -89,7 +89,7 @@ export function AllergyDialog({
                   'flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors',
                   active
                     ? 'border-[var(--danger)] bg-[var(--danger-soft)] text-[var(--danger)]'
-                    : 'border-[var(--border)] bg-[var(--surface-raised)]',
+                    : 'border-[var(--line)] bg-[var(--surface)]',
                 )}
               >
                 {a.icon && <span aria-hidden>{a.icon}</span>}

@@ -182,7 +182,7 @@ export function CartView({
             muted
           />
         )}
-        <div className="mt-2 flex items-center justify-between border-t border-[var(--border)] pt-2 text-base font-semibold">
+        <div className="mt-2 flex items-center justify-between border-t border-[var(--line)] pt-2 text-base font-semibold">
           <span>{t('cart.total')}</span>
           <span className="tabular">{formatMoney(cartTotals.total, currency)}</span>
         </div>
@@ -214,15 +214,15 @@ export function CartView({
           disabled={belowMinimum}
           onClick={() => setConfirmOpen(true)}
         >
-          {sending ? t('cart.sending') : t('cart.placeOrder')}
+          {sending ? t('cart.sending') : t('cart.confirmOrder')}
         </Button>
       )}
 
       <Dialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={t('cart.placeOrder')}
-        description={`${t('cart.total')} ${formatMoney(cartTotals.total, currency)}`}
+        title={t('cart.confirmOrder')}
+        description={t('cart.confirmBody')}
         footer={
           <>
             <Button variant="secondary" full onClick={() => setConfirmOpen(false)}>

@@ -172,7 +172,7 @@ function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-[var(--border)] text-left muted">
+          <tr className="border-b border-[var(--line)] text-left muted">
             {headers.map((h, i) => (
               <th key={h} className={`py-1.5 font-medium ${i > 0 ? 'text-right' : ''}`}>
                 {h}
@@ -182,7 +182,7 @@ function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-[var(--border)] last:border-0">
+            <tr key={i} className="border-b border-[var(--line)] last:border-0">
               {row.map((cell, j) => (
                 <td
                   key={j}

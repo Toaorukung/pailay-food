@@ -5,6 +5,7 @@ import { listOpenSessions } from '@/lib/session';
 import { syncHealth } from '@/lib/sheets/queue';
 import { handler } from '@/lib/api';
 import type { Order, Payment } from '@/lib/types';
+import { isPaid } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,10 @@ export interface AdminLive {
     ordersToday: number;
     activeOrders: number;
     pendingPayments: number;
+    /** Orders stuck until staff weigh something. */
+    awaitingPricing: number;
+    /** Confirmed by the guest but not yet transferred. */
+    unpaidOrders: number;
   };
   sync: { pending: number; dead: number };
   serverTime: string;
@@ -56,8 +61,10 @@ export const GET = handler(async (req: Request) => {
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
+  // Revenue means money received, not food requested: an order sitting
+  // unpaid is a liability, not a sale.
   const todays = orders.filter(
-    (o) => o.createdAt.startsWith(today) && o.status !== 'CANCELLED',
+    (o) => o.createdAt.startsWith(today) && isPaid(o.status),
   );
 
   const body: AdminLive = {
@@ -81,6 +88,8 @@ export const GET = handler(async (req: Request) => {
       activeOrders: orders.filter(
         (o) => o.status === 'NEW' || o.status === 'COOKING',
       ).length,
+      awaitingPricing: orders.filter((o) => o.status === 'AWAITING_PRICING').length,
+      unpaidOrders: orders.filter((o) => o.status === 'UNPAID').length,
       pendingPayments: payments.length,
     },
     sync,

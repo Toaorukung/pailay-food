@@ -63,7 +63,7 @@ export default async function QrPrintPage() {
       </header>
 
       {cards.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center muted">
+        <p className="rounded-xl border border-dashed border-[var(--line)] p-8 text-center muted">
           ยังไม่มีวิลล่าที่เปิดใช้งาน
         </p>
       ) : (

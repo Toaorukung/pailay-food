@@ -10,6 +10,8 @@ import {
   type RawRow,
   type TabName,
 } from './schema';
+import { sheetsConfigured } from '../demo';
+import { kv } from '../kv';
 
 /**
  * Admin content writes.
@@ -56,8 +58,38 @@ async function readTab(tab: TabName): Promise<TabSnapshot> {
   return { rows, rowNumbers };
 }
 
+const ROWS_CACHE_SECONDS = 120;
+const rowsCacheKey = (tab: TabName) => `sheetrows:${tab}`;
+
+/**
+ * Read a tab for display, cached briefly.
+ *
+ * Every admin screen reads its tab on load, and a Sheets round trip is
+ * 300-800ms — clicking between Menu, Categories and Allergens paid that toll
+ * each time. The cache is dropped explicitly after any write through
+ * `invalidateRows`, so an edit is still visible immediately; the TTL only
+ * covers changes made directly in the spreadsheet by hand.
+ */
 export async function listRows(tab: TabName): Promise<RawRow[]> {
-  return (await readTab(tab)).rows;
+  // No spreadsheet: the admin list screens render empty rather than surfacing
+  // a Google auth failure. Writes are refused earlier with a clear message.
+  if (!sheetsConfigured()) return [];
+
+  const cached = await kv()
+    .get<RawRow[]>(rowsCacheKey(tab))
+    .catch(() => null);
+  if (cached) return cached;
+
+  const { rows } = await readTab(tab);
+  await kv()
+    .set(rowsCacheKey(tab), rows, { ex: ROWS_CACHE_SECONDS })
+    .catch(() => {});
+  return rows;
+}
+
+/** Called after any write so the admin sees their own edit, not the cache. */
+export async function invalidateRows(tab: TabName): Promise<void> {
+  await kv().del(rowsCacheKey(tab)).catch(() => {});
 }
 
 export interface UpsertResult {
@@ -86,10 +118,12 @@ export async function upsertRow(
     await batchUpdate([
       { range: `${tab}!A${existing}:${lastCol}${existing}`, values },
     ]);
+    await invalidateRows(tab);
     return { id, created: false };
   }
 
   await append(appendRange(tab), values);
+  await invalidateRows(tab);
   return { id, created: true };
 }
 
@@ -117,6 +151,7 @@ export async function upsertMany(
 
   if (updates.length > 0) await batchUpdate(updates);
   if (additions.length > 0) await append(appendRange(tab), additions);
+  await invalidateRows(tab);
 }
 
 /** Tab title -> numeric sheetId, needed for structural edits. Cached. */
@@ -152,6 +187,7 @@ export async function deleteRow(tab: TabName, id: string): Promise<boolean> {
       },
     },
   ]);
+  await invalidateRows(tab);
   return true;
 }
 

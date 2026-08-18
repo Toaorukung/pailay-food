@@ -103,7 +103,7 @@ export function MenuView({
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('search.placeholder')}
             aria-label={t('search.placeholder')}
-            className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] pl-9 pr-9 text-[15px] focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25"
+            className="h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] pl-9 pr-9 text-[15px] focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25"
           />
           {query && (
             <button
@@ -124,8 +124,8 @@ export function MenuView({
           className={cn(
             'relative flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors',
             filtersOpen || activeFilters
-              ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900 dark:text-brand-100'
-              : 'border-[var(--border)] bg-[var(--surface-raised)]',
+              ? 'border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-soft-text)]'
+              : 'border-[var(--line)] bg-[var(--surface)]',
           )}
         >
           <SlidersHorizontal className="size-4" />
@@ -138,7 +138,7 @@ export function MenuView({
       </div>
 
       {filtersOpen && (
-        <div className="flex flex-wrap gap-2 rounded-xl border border-[var(--border)] p-3 animate-rise">
+        <div className="flex flex-wrap gap-2 rounded-xl border border-[var(--line)] p-3 animate-rise">
           <FilterChip active={vegOnly} onClick={() => setVegOnly((v) => !v)}>
             <Leaf className="size-3.5" /> {t('filter.vegetarian')}
           </FilterChip>
@@ -282,8 +282,8 @@ function ItemRow({
         onClick={onSelect}
         className={cn(
           'flex w-full gap-3 rounded-2xl border p-3 text-left transition-colors',
-          'bg-[var(--surface-raised)] hover:bg-[var(--surface-sunken)]',
-          flagged ? 'border-[var(--danger)]' : 'border-[var(--border)]',
+          'bg-[var(--surface)] hover:bg-[var(--surface-sunken)]',
+          flagged ? 'border-[var(--danger)]' : 'border-[var(--line)]',
           !item.isAvailable && 'opacity-60',
         )}
       >
@@ -404,7 +404,7 @@ function FilterChip({
         'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
         active
           ? 'border-brand-500 bg-brand-600 text-white'
-          : 'border-[var(--border)] bg-[var(--surface-raised)]',
+          : 'border-[var(--line)] bg-[var(--surface)]',
       )}
     >
       {children}

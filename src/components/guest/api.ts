@@ -1,6 +1,15 @@
 'use client';
 
-import type { SessionSnapshot } from '@/lib/snapshot';
+import type { SessionSnapshot, PublicPayment } from '@/lib/snapshot';
+
+/** Everything needed to render a payment screen for one order. */
+export interface PaymentContext {
+  payment: PublicPayment;
+  qr: { dataUrl: string; payload: string } | null;
+  promptPayId: string;
+  promptPayName: string;
+  paymentNote: { th: string; en: string; zh: string };
+}
 import type { MenuCatalog, Order } from '@/lib/types';
 
 /**
@@ -103,25 +112,23 @@ export const guestApi = {
     ),
 
   placeOrder: (sessionId: string, idempotencyKey: string) =>
-    call<{ order: Order; removed?: { name: string }[] }>(
+    call<PaymentContext & { order: Order; removed?: { name: string }[] }>(
       `/api/s/${sessionId}/order`,
       { method: 'POST', body: JSON.stringify({ idempotencyKey }) },
     ),
 
-  checkout: (sessionId: string) =>
-    call<{
-      payment: NonNullable<SessionSnapshot['payment']>;
-      qr: { dataUrl: string; payload: string } | null;
-      promptPayId: string;
-      promptPayName: string;
-      paymentNote: { th: string; en: string; zh: string };
-    }>(`/api/s/${sessionId}/checkout`, { method: 'POST' }),
+  /** Fetches the PromptPay QR for one order — used to pay and to re-pay. */
+  payFor: (sessionId: string, orderId: string) =>
+    call<PaymentContext & { order: Order }>(
+      `/api/s/${sessionId}/pay?orderId=${encodeURIComponent(orderId)}`,
+      { method: 'POST' },
+    ),
 
-  uploadSlip: (sessionId: string, file: Blob) => {
+  uploadSlip: (sessionId: string, orderId: string, file: Blob) => {
     const form = new FormData();
     form.append('slip', file, 'slip.jpg');
-    return call<{ payment: NonNullable<SessionSnapshot['payment']> }>(
-      `/api/s/${sessionId}/slip`,
+    return call<{ payment: PublicPayment }>(
+      `/api/s/${sessionId}/slip?orderId=${encodeURIComponent(orderId)}`,
       { method: 'POST', body: form },
     );
   },

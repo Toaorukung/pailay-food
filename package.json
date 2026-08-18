@@ -14,7 +14,10 @@
     "loadtest": "tsx scripts/loadtest.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "predev": "tsx scripts/ensure-env.ts",
+    "demo": "tsx scripts/ensure-env.ts && next build --no-lint && next start",
+    "connect-sheet": "tsx scripts/connect-sheet.ts"
   },
   "dependencies": {
     "@noble/hashes": "^1.7.1",

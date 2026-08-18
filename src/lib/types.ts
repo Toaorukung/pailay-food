@@ -121,7 +121,13 @@ export interface VillaTable {
 }
 
 export type GeoStatus = 'OK' | 'OUTSIDE' | 'DENIED' | 'UNAVAILABLE' | 'UNKNOWN';
-export type SessionStatus = 'OPEN' | 'LOCKED' | 'CLOSED';
+/**
+ * Sessions no longer close themselves. A villa keeps one session for the whole
+ * stay — order, pay, eat, order again — until staff expire it from
+ * /admin/sessions. That is also what turns the link into a read-only record of
+ * everything the villa ordered.
+ */
+export type SessionStatus = 'OPEN' | 'CLOSED';
 
 export interface GuestSession {
   id: string;
@@ -137,8 +143,8 @@ export interface GuestSession {
   geoStatus: GeoStatus;
   distanceM: number | null;
   locale: Locale;
-  /** Set once checkout starts, so the bill cannot change underneath it. */
-  activePaymentId: string | null;
+  /** When staff ended it, and who. Null while the session is still open. */
+  closedBy: string | null;
 }
 
 export interface CartLineOption {
@@ -170,7 +176,33 @@ export interface Cart {
   updatedAt: string;
 }
 
-export type OrderStatus = 'NEW' | 'COOKING' | 'SERVED' | 'CANCELLED';
+/**
+ * An order's life, in order.
+ *
+ * Everything up to and including AWAITING_PAYMENT is invisible to the kitchen:
+ * nothing is cooked until the money is in and a member of staff has said so.
+ * NEW is therefore "paid, verified, start cooking", not "just arrived".
+ */
+export type OrderStatus =
+  /** Contains dishes sold by weight; staff must price it before it can be paid. */
+  | 'AWAITING_PRICING'
+  /** Total is known. Waiting for the guest to transfer and upload a slip. */
+  | 'UNPAID'
+  /** Slip uploaded. Waiting for staff to check it against the amount. */
+  | 'AWAITING_PAYMENT'
+  /** Paid and verified. This is when it reaches the kitchen display. */
+  | 'NEW'
+  | 'COOKING'
+  | 'SERVED'
+  | 'CANCELLED';
+
+/** Statuses the kitchen acts on. Anything else is still a billing matter. */
+export const KITCHEN_STATUSES: OrderStatus[] = ['NEW', 'COOKING', 'SERVED'];
+
+/** Paid for, so it counts towards revenue and the session's history. */
+export function isPaid(status: OrderStatus): boolean {
+  return status === 'NEW' || status === 'COOKING' || status === 'SERVED';
+}
 
 export interface OrderItem {
   id: string;
@@ -202,6 +234,8 @@ export interface Order {
   serviceCharge: number;
   vat: number;
   total: number;
+  /** The payment raised for this order when the guest confirmed it. */
+  paymentId: string;
   /** Allergen ids, snapshotted off the session at order time. */
   allergyProfile: string[];
   /**
@@ -225,7 +259,8 @@ export interface Payment {
   sessionId: string;
   tableLabel: string;
   villa: string;
-  orderIds: string[];
+  /** One payment, one order. Guests settle each order before it is cooked. */
+  orderId: string;
   amount: number;
   method: 'promptpay';
   status: PaymentStatus;

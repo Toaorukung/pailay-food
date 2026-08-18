@@ -162,7 +162,7 @@ export function ItemDialog({
         </div>
 
         {item.priceOnRequest && (
-          <div className="space-y-1 rounded-xl border-l-4 border-brand-500 bg-brand-50 p-3 dark:bg-brand-900">
+          <div className="space-y-1 rounded-xl border-l-4 border-[var(--brand)] bg-[var(--brand-soft)] p-3 text-[var(--brand-soft-text)]">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <Scale className="size-4" />
               {t('item.priceOnRequest')}
@@ -293,8 +293,8 @@ export function ItemDialog({
                       className={cn(
                         'flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors',
                         active
-                          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900'
-                          : 'border-[var(--border)]',
+                          ? 'border-[var(--brand)] bg-[var(--brand-soft)]'
+                          : 'border-[var(--line)]',
                         disabled && 'opacity-40',
                       )}
                     >
@@ -305,7 +305,7 @@ export function ItemDialog({
                             single ? 'rounded-full' : 'rounded',
                             active
                               ? 'border-brand-600 bg-brand-600'
-                              : 'border-[var(--border)]',
+                              : 'border-[var(--line)]',
                           )}
                         >
                           {active && <span className="size-1.5 rounded-full bg-white" />}
@@ -338,7 +338,7 @@ export function ItemDialog({
             maxLength={NOTE_MAX_LENGTH}
             rows={3}
             placeholder={t('item.notePlaceholder')}
-            className="w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-3.5 py-2.5 text-[15px] focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25"
+            className="w-full resize-y rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2.5 text-[15px] focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25"
           />
           <p
             className={cn(

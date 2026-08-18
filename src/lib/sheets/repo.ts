@@ -1,4 +1,5 @@
 import { batchGet } from './client';
+import { sheetsConfigured } from '../demo';
 import { TABS, fullRange, toObjects, num, bool, list, type RawRow } from './schema';
 import type {
   AdminUser,
@@ -245,6 +246,26 @@ export async function loadTables(): Promise<VillaTable[]> {
 }
 
 export async function loadAdminUsers(): Promise<AdminUser[]> {
+  // Standalone: one owner account so the admin screens are reachable. The
+  // password still goes through the same scrypt verification — this is a
+  // default credential, not a bypass, and the dashboard says to change it.
+  if (!sheetsConfigured()) {
+    const { hashPassword } = await import('../admin/password');
+    return [
+      {
+        id: 'u-owner',
+        email: (process.env.DEMO_ADMIN_EMAIL ?? '').toLowerCase(),
+        username: 'owner',
+        passwordHash: hashPassword(
+          process.env.DEMO_ADMIN_PASSWORD || 'pailay-admin',
+        ),
+        name: 'เจ้าของร้าน',
+        role: 'OWNER',
+        isActive: true,
+      },
+    ];
+  }
+
   const range = fullRange(TABS.AdminUsers);
   const res = await batchGet([range]);
   return toObjects(res[range] ?? [])
@@ -263,6 +284,8 @@ export async function loadAdminUsers(): Promise<AdminUser[]> {
 }
 
 export async function loadSettingsMap(): Promise<Record<string, string>> {
+  if (!sheetsConfigured()) return { ...SETTINGS_DEFAULTS };
+
   const range = fullRange(TABS.Settings);
   const res = await batchGet([range]);
   return settingsFrom(toObjects(res[range] ?? []).rows);

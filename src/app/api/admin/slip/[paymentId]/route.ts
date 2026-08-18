@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/admin/auth';
 import { getPayment } from '@/lib/payments';
+import { readImage } from '@/lib/storage';
 import { handler, fail } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -21,14 +22,12 @@ export const GET = handler(
     const payment = await getPayment(paymentId);
     if (!payment?.slipUrl) return fail('ไม่พบสลิป', 404);
 
-    const upstream = await fetch(payment.slipUrl, { cache: 'no-store' });
-    if (!upstream.ok || !upstream.body) {
-      return fail('โหลดรูปสลิปไม่สำเร็จ', 502);
-    }
+    const image = await readImage(payment.slipUrl);
+    if (!image) return fail('โหลดรูปสลิปไม่สำเร็จ', 502);
 
-    return new Response(upstream.body, {
+    return new Response(new Uint8Array(image.body), {
       headers: {
-        'Content-Type': upstream.headers.get('content-type') ?? 'image/jpeg',
+        'Content-Type': image.contentType,
         // Private: a shared browser cache must not retain payment evidence.
         'Cache-Control': 'private, max-age=60',
         'Content-Disposition': `inline; filename="slip-${paymentId}.jpg"`,

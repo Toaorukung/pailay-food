@@ -1,12 +1,17 @@
 @import 'tailwindcss';
 
 /*
-  Design tokens.
+  Design system.
 
-  Guest-facing pages are used one-handed, outdoors, in bright sun, by people
-  who are on holiday and have never seen this app before. That drives the
-  choices here: large tap targets, high contrast, few colours, and generous
-  spacing rather than dense information.
+  White ground, coral-orange action colour, deep navy for the admin sidebar.
+  The orange carries every "do the thing" control; the navy is a surface that
+  should recede. The villa's own printed blue survives as `--sea`, used for
+  informational states so that blue never competes with the order button.
+
+  Guest screens are used one-handed, outdoors, in bright sun, by people on
+  holiday who have never seen this app. Admin screens are used all evening by
+  the same two or three people who need density and status at a glance. Both
+  share the palette; they differ in spacing and information density.
 */
 
 @theme {
@@ -21,82 +26,216 @@
     'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', ui-sans-serif, system-ui,
     sans-serif;
 
-  /* Brand — deep tropical green, warm sand accent. */
-  --color-brand-50: oklch(0.97 0.02 165);
-  --color-brand-100: oklch(0.94 0.04 165);
-  --color-brand-200: oklch(0.88 0.07 165);
-  --color-brand-300: oklch(0.8 0.1 165);
-  --color-brand-400: oklch(0.71 0.12 165);
-  --color-brand-500: oklch(0.62 0.13 165);
-  --color-brand-600: oklch(0.53 0.12 165);
-  --color-brand-700: oklch(0.44 0.1 165);
-  --color-brand-800: oklch(0.36 0.08 165);
-  --color-brand-900: oklch(0.29 0.06 165);
+  /*
+    Coral orange. Food apps land here for a reason — warm reds read as
+    appetite and as urgency, which is exactly what an "order" button is for.
+    The villa's own blue survives as the informational accent below.
+  */
+  --color-brand-50: oklch(0.974 0.016 52);
+  --color-brand-100: oklch(0.944 0.038 50);
+  --color-brand-200: oklch(0.892 0.076 46);
+  --color-brand-300: oklch(0.826 0.118 43);
+  --color-brand-400: oklch(0.756 0.158 40);
+  --color-brand-500: oklch(0.698 0.184 38);
+  --color-brand-600: oklch(0.636 0.194 36);
+  --color-brand-700: oklch(0.552 0.176 34);
+  --color-brand-800: oklch(0.466 0.144 33);
+  --color-brand-900: oklch(0.396 0.114 33);
+  --color-brand-950: oklch(0.276 0.078 33);
 
-  --color-sand-50: oklch(0.98 0.01 75);
-  --color-sand-100: oklch(0.96 0.02 75);
-  --color-sand-200: oklch(0.92 0.04 75);
-  --color-sand-300: oklch(0.86 0.06 75);
-  --color-sand-500: oklch(0.72 0.11 68);
-  --color-sand-600: oklch(0.62 0.12 60);
+  /* Deep navy. Used for the admin sidebar, which should recede, not compete. */
+  --color-navy-700: oklch(0.312 0.038 264);
+  --color-navy-800: oklch(0.262 0.036 264);
+  --color-navy-900: oklch(0.212 0.032 264);
+  --color-navy-950: oklch(0.168 0.028 264);
+
+  /* Kept for informational accents — the villa's printed material is blue. */
+  --color-sea-300: oklch(0.808 0.104 245);
+  --color-sea-500: oklch(0.632 0.176 254);
+  --color-sea-700: oklch(0.476 0.163 258);
+
+
 
   --radius-card: 1rem;
   --radius-pill: 999px;
-
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);
-  --shadow-lift: 0 2px 4px oklch(0 0 0 / 0.06), 0 16px 40px oklch(0 0 0 / 0.1);
 }
 
+/*
+  Light theme. Every colour the app uses is defined here as a token; the dark
+  block below redefines only the values. Nothing is styled directly inside a
+  media query, so a component can never end up with one theme's text on the
+  other theme's ground.
+*/
 :root {
-  --surface: oklch(0.99 0.004 100);
-  --surface-raised: oklch(1 0 0);
-  --surface-sunken: oklch(0.96 0.006 100);
-  --border: oklch(0.9 0.008 100);
-  --text: oklch(0.22 0.015 250);
-  --text-muted: oklch(0.52 0.015 250);
-  --danger: oklch(0.58 0.19 25);
-  --danger-soft: oklch(0.96 0.03 25);
-  --warning: oklch(0.72 0.15 70);
-  --warning-soft: oklch(0.97 0.04 80);
-  --success: oklch(0.6 0.14 155);
-  --success-soft: oklch(0.95 0.04 155);
+  color-scheme: light;
+
+  /* Near-white with the faintest warmth, so white cards still read as raised. */
+  --canvas: oklch(0.983 0.004 60);
+  --canvas-deep: oklch(0.962 0.006 60);
+
+  /* Three levels of elevation, not two: cards sit on panels sit on canvas. */
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.988 0.003 60);
+  --surface-sunken: oklch(0.962 0.006 60);
+  --surface-inset: oklch(0.938 0.008 60);
+
+  --line: oklch(0.918 0.006 60);
+  --line-strong: oklch(0.856 0.010 60);
+
+  --text: oklch(0.226 0.024 264);
+  --text-muted: oklch(0.516 0.022 262);
+  --text-subtle: oklch(0.644 0.018 260);
+
+  /* Sidebar is its own surface family — dark in both themes. */
+  --sidebar: var(--color-navy-900);
+  --sidebar-2: var(--color-navy-800);
+  --sidebar-line: oklch(0.302 0.030 264);
+  --sidebar-text: oklch(0.966 0.006 60);
+  --sidebar-muted: oklch(0.702 0.018 262);
+  --text-on-brand: oklch(1 0 0);
+
+  --brand: var(--color-brand-600);
+  --brand-hover: var(--color-brand-700);
+  --brand-soft: var(--color-brand-50);
+  --brand-soft-text: var(--color-brand-700);
+  --brand-ring: oklch(0.698 0.184 38 / 0.28);
+
+  --sea: var(--color-sea-500);
+  --sea-soft: oklch(0.958 0.022 245);
+
+  --danger: oklch(0.556 0.208 25);
+  --danger-soft: oklch(0.962 0.032 25);
+  --danger-strong: oklch(0.478 0.196 25);
+
+  --warning: oklch(0.598 0.148 62);
+  --warning-soft: oklch(0.962 0.046 78);
+
+  --success: oklch(0.548 0.132 155);
+  --success-soft: oklch(0.952 0.044 158);
+
+  --info: var(--color-brand-600);
+  --info-soft: var(--color-brand-50);
+
+  /* Layered shadows read as depth; a single blur reads as a smudge. */
+  --shadow-xs: 0 1px 2px oklch(0.3 0.04 250 / 0.06);
+  --shadow-sm: 0 1px 2px oklch(0.3 0.04 250 / 0.05),
+    0 2px 6px oklch(0.3 0.04 250 / 0.05);
+  --shadow-md: 0 1px 2px oklch(0.3 0.04 250 / 0.05),
+    0 6px 16px oklch(0.3 0.04 250 / 0.08);
+  --shadow-lg: 0 2px 4px oklch(0.3 0.04 250 / 0.06),
+    0 16px 40px oklch(0.3 0.04 250 / 0.12);
+  --shadow-brand: 0 2px 6px oklch(0.636 0.194 36 / 0.26),
+    0 8px 20px oklch(0.636 0.194 36 / 0.22);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --surface: oklch(0.19 0.012 250);
-    --surface-raised: oklch(0.23 0.014 250);
-    --surface-sunken: oklch(0.16 0.01 250);
-    --border: oklch(0.32 0.012 250);
-    --text: oklch(0.95 0.006 250);
-    --text-muted: oklch(0.7 0.012 250);
-    --danger: oklch(0.68 0.17 25);
-    --danger-soft: oklch(0.3 0.07 25);
-    --warning: oklch(0.78 0.14 75);
-    --warning-soft: oklch(0.32 0.06 75);
-    --success: oklch(0.7 0.13 155);
-    --success-soft: oklch(0.28 0.06 155);
+    color-scheme: dark;
+
+    --canvas: oklch(0.188 0.014 264);
+    --canvas-deep: oklch(0.156 0.012 264);
+
+    --surface: oklch(0.246 0.024 254);
+    --surface-2: oklch(0.272 0.026 254);
+    --surface-sunken: oklch(0.216 0.021 254);
+    --surface-inset: oklch(0.188 0.019 254);
+
+    --line: oklch(0.336 0.024 254);
+    --line-strong: oklch(0.428 0.030 254);
+
+    --text: oklch(0.958 0.008 250);
+    --text-muted: oklch(0.734 0.019 250);
+    --text-subtle: oklch(0.628 0.021 250);
+    --text-on-brand: oklch(1 0 0);
+
+    /* Lift the brand on a dark ground — 600 goes muddy against near-black. */
+    --brand: var(--color-brand-500);
+    --brand-hover: var(--color-brand-400);
+    --brand-soft: oklch(0.322 0.082 36);
+    --brand-soft-text: var(--color-brand-200);
+    --brand-ring: oklch(0.756 0.158 40 / 0.38);
+
+    --sea: var(--color-sea-300);
+    --sea-soft: oklch(0.302 0.062 250);
+
+    /* Already dark; nudge it away from the canvas so the edge still reads. */
+    --sidebar: var(--color-navy-950);
+    --sidebar-2: var(--color-navy-900);
+    --sidebar-line: oklch(0.276 0.026 264);
+    --sidebar-text: oklch(0.958 0.006 60);
+    --sidebar-muted: oklch(0.676 0.018 262);
+
+    --danger: oklch(0.702 0.176 25);
+    --danger-soft: oklch(0.318 0.084 25);
+    --danger-strong: oklch(0.772 0.156 25);
+
+    --warning: oklch(0.792 0.142 72);
+    --warning-soft: oklch(0.328 0.068 66);
+
+    --success: oklch(0.732 0.138 158);
+    --success-soft: oklch(0.302 0.066 158);
+
+    --info: var(--color-brand-400);
+    --info-soft: oklch(0.318 0.078 256);
+
+    --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.3);
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3), 0 2px 6px oklch(0 0 0 / 0.24);
+    --shadow-md: 0 1px 2px oklch(0 0 0 / 0.32), 0 6px 16px oklch(0 0 0 / 0.32);
+    --shadow-lg: 0 2px 4px oklch(0 0 0 / 0.4), 0 16px 40px oklch(0 0 0 / 0.45);
+    --shadow-brand: 0 2px 6px oklch(0 0 0 / 0.4),
+      0 8px 20px oklch(0.698 0.184 38 / 0.28);
   }
 }
 
 :root[data-theme='dark'] {
-  --surface: oklch(0.19 0.012 250);
-  --surface-raised: oklch(0.23 0.014 250);
-  --surface-sunken: oklch(0.16 0.01 250);
-  --border: oklch(0.32 0.012 250);
-  --text: oklch(0.95 0.006 250);
-  --text-muted: oklch(0.7 0.012 250);
-  --danger: oklch(0.68 0.17 25);
-  --danger-soft: oklch(0.3 0.07 25);
-  --warning: oklch(0.78 0.14 75);
-  --warning-soft: oklch(0.32 0.06 75);
-  --success: oklch(0.7 0.13 155);
-  --success-soft: oklch(0.28 0.06 155);
+  color-scheme: dark;
+  --canvas: oklch(0.188 0.014 264);
+  --canvas-deep: oklch(0.156 0.012 264);
+  --surface: oklch(0.246 0.024 254);
+  --surface-2: oklch(0.272 0.026 254);
+  --surface-sunken: oklch(0.216 0.021 254);
+  --surface-inset: oklch(0.188 0.019 254);
+  --line: oklch(0.336 0.024 254);
+  --line-strong: oklch(0.428 0.030 254);
+  --text: oklch(0.958 0.008 250);
+  --text-muted: oklch(0.734 0.019 250);
+  --text-subtle: oklch(0.628 0.021 250);
+  --text-on-brand: oklch(1 0 0);
+  --brand: var(--color-brand-500);
+  --brand-hover: var(--color-brand-400);
+  --brand-soft: oklch(0.322 0.082 36);
+  --brand-soft-text: var(--color-brand-200);
+  --brand-ring: oklch(0.756 0.158 40 / 0.38);
+
+  --sea: var(--color-sea-300);
+  --sea-soft: oklch(0.302 0.062 250);
+
+  /* Already dark; nudge it away from the canvas so the edge still reads. */
+  --sidebar: var(--color-navy-950);
+  --sidebar-2: var(--color-navy-900);
+  --sidebar-line: oklch(0.276 0.026 264);
+  --sidebar-text: oklch(0.958 0.006 60);
+  --sidebar-muted: oklch(0.676 0.018 262);
+  --danger: oklch(0.702 0.176 25);
+  --danger-soft: oklch(0.318 0.084 25);
+  --danger-strong: oklch(0.772 0.156 25);
+  --warning: oklch(0.792 0.142 72);
+  --warning-soft: oklch(0.328 0.068 66);
+  --success: oklch(0.732 0.138 158);
+  --success-soft: oklch(0.302 0.066 158);
+  --info: var(--color-brand-400);
+  --info-soft: oklch(0.318 0.078 256);
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3), 0 2px 6px oklch(0 0 0 / 0.24);
+  --shadow-md: 0 1px 2px oklch(0 0 0 / 0.32), 0 6px 16px oklch(0 0 0 / 0.32);
+  --shadow-lg: 0 2px 4px oklch(0 0 0 / 0.4), 0 16px 40px oklch(0 0 0 / 0.45);
+  --shadow-brand: 0 2px 6px oklch(0 0 0 / 0.4),
+    0 8px 20px oklch(0.698 0.184 38 / 0.28);
 }
 
 @layer base {
   * {
-    border-color: var(--border);
+    border-color: var(--line);
   }
 
   html {
@@ -105,19 +244,25 @@
   }
 
   body {
-    background: var(--surface);
+    background: var(--canvas);
     color: var(--text);
     font-family: var(--font-sans);
     /* Thai ascenders and tone marks need the extra line box. */
-    line-height: 1.7;
+    line-height: 1.65;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overscroll-behavior-y: none;
   }
 
-  /* iOS zooms the page when a font-size under 16px gets focus. */
-  input,
-  textarea,
-  select {
+  /* Headings carry the personality; body text stays quiet. */
+  h1, h2, h3 {
+    letter-spacing: -0.018em;
+    line-height: 1.28;
+    text-wrap: balance;
+  }
+
+  /* iOS zooms the page when a font-size under 16px takes focus. */
+  input, textarea, select {
     font-size: max(16px, 1rem);
   }
 
@@ -126,75 +271,161 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-brand-500);
+    outline: 2px solid var(--brand);
     outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  ::selection {
+    background: var(--brand-soft);
+    color: var(--brand-soft-text);
   }
 
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
   ::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: var(--line-strong);
     border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-subtle);
+    background-clip: content-box;
   }
 }
 
 @layer utilities {
-  .surface {
-    background: var(--surface-raised);
-  }
-  .sunken {
-    background: var(--surface-sunken);
-  }
-  .muted {
-    color: var(--text-muted);
-  }
+  .surface { background: var(--surface); }
+  .surface-2 { background: var(--surface-2); }
+  .sunken { background: var(--surface-sunken); }
+  .muted { color: var(--text-muted); }
+  .subtle { color: var(--text-subtle); }
+
   .card {
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-radius: var(--radius-card);
-    box-shadow: var(--shadow-soft);
+    box-shadow: var(--shadow-sm);
   }
+
+  /* Header/footer bars that sit over scrolling content. */
+  .glass {
+    background: color-mix(in oklab, var(--surface) 86%, transparent);
+    backdrop-filter: saturate(1.5) blur(12px);
+    -webkit-backdrop-filter: saturate(1.5) blur(12px);
+  }
+
+  /* The guest app's brand header. */
+  .brand-gradient {
+    background:
+      radial-gradient(120% 140% at 12% -20%,
+        var(--color-brand-400) 0%, transparent 58%),
+      linear-gradient(150deg, var(--color-brand-500), var(--color-brand-700));
+  }
+
+  /* The admin sidebar and anything that has to sit on it. */
+  .sidebar-surface {
+    background: var(--sidebar);
+    color: var(--sidebar-text);
+  }
+
   /* Keeps sticky footers clear of the iPhone home indicator. */
-  .safe-bottom {
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  .safe-bottom { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+  .safe-top { padding-top: max(0.25rem, env(safe-area-inset-top)); }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Uppercase micro-labels need tracking or they read as a smear. */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
   }
-  .safe-top {
-    padding-top: max(0.5rem, env(safe-area-inset-top));
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    scrollbar-width: none;
-  }
-  .tabular {
-    font-variant-numeric: tabular-nums;
+
+  /* Edge fades on horizontally scrolling chip rows. */
+  .fade-x {
+    mask-image: linear-gradient(90deg, transparent, #000 14px,
+      #000 calc(100% - 14px), transparent);
   }
 }
+
+/* ── Motion ────────────────────────────────────────────────
+   Short and few. Movement here exists to explain where something came
+   from, not to decorate. */
 
 @keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
 }
 
-.animate-rise {
-  animation: rise 0.22s ease-out both;
+.animate-rise { animation: rise 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade { animation: fade 0.18s ease-out both; }
+.animate-sheet { animation: sheet-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Staggers a list so it assembles rather than appearing all at once. */
+.stagger > * { animation: rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 30ms; }
+.stagger > *:nth-child(3) { animation-delay: 60ms; }
+.stagger > *:nth-child(4) { animation-delay: 90ms; }
+.stagger > *:nth-child(5) { animation-delay: 120ms; }
+.stagger > *:nth-child(n + 6) { animation-delay: 150ms; }
+
+/* Skeletons: a moving highlight reads as "loading", a static grey box
+   reads as "broken". */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-sunken);
+  border-radius: 0.625rem;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--surface) 70%, transparent),
+    transparent
+  );
+  animation: shimmer 1.4s infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+  .skeleton::after { display: none; }
+}
+
+@media print {
+  body { background: #fff; }
+  .no-print { display: none !important; }
 }

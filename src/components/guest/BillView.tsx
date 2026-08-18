@@ -1,363 +1,157 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import {
-  CheckCircle2,
-  CreditCard,
-  Hourglass,
-  ReceiptText,
-  Scale,
-  Upload,
-  XCircle,
-} from 'lucide-react';
+import { ReceiptText, CheckCircle2, CircleDollarSign, Info } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
-import { Button, Dialog, EmptyState, Spinner } from '@/components/ui';
+import { Button, Card, EmptyState } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
+import { isPaid } from '@/lib/types';
 import type { MenuCatalog } from '@/lib/types';
 import type { SessionSnapshot } from '@/lib/snapshot';
-import { guestApi, compressImage } from './api';
-import { ServiceNotice } from './ServiceNotice';
+import { ClosedBanner } from './ClosedBanner';
 
-interface Checkout {
-  qr: { dataUrl: string; payload: string } | null;
-  promptPayId: string;
-  promptPayName: string;
-  paymentNote: { th: string; en: string; zh: string };
-}
-
+/**
+ * The villa's running bill for the whole stay.
+ *
+ * Payment happens per order, so this screen never asks for money — it is the
+ * record. It is also what the guest is left with after staff end the session:
+ * every order placed, what each one cost, and what has been settled.
+ */
 export function BillView({
   catalog,
   snapshot,
-  onChanged,
   onBrowse,
 }: {
   catalog: MenuCatalog;
   snapshot: SessionSnapshot;
-  onChanged: () => Promise<unknown>;
   onBrowse: () => void;
 }) {
-  const { t, L } = useI18n();
-  const [checkout, setCheckout] = useState<Checkout | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [noticeOpen, setNoticeOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
-
+  const { t, L, locale } = useI18n();
   const currency = catalog.settings.currency;
-  const payment = snapshot.payment;
-  const sessionId = snapshot.session.id;
+  const closed = snapshot.session.status === 'CLOSED';
 
-  async function startCheckout() {
-    setConfirmOpen(false);
-    setBusy(true);
-    setError(null);
-    const res = await guestApi.checkout(sessionId);
-    setBusy(false);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    setCheckout({
-      qr: res.data.qr,
-      promptPayId: res.data.promptPayId,
-      promptPayName: res.data.promptPayName,
-      paymentNote: res.data.paymentNote,
-    });
-    await onChanged();
-  }
+  const orders = snapshot.orders.filter((o) => o.status !== 'CANCELLED');
+  const dateLocale =
+    locale === 'th' ? 'th-TH' : locale === 'zh' ? 'zh-CN' : 'en-GB';
 
-  async function upload(file: File) {
-    setUploading(true);
-    setError(null);
-    // Shrink on-device first: a raw 8MB camera photo over villa wifi is a
-    // minute of uploading and a likely timeout.
-    const blob = await compressImage(file);
-    const res = await guestApi.uploadSlip(sessionId, blob);
-    setUploading(false);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    await onChanged();
-  }
-
-  // ── Terminal states ───────────────────────────────────────
-
-  if (payment?.status === 'APPROVED') {
+  if (orders.length === 0) {
     return (
-      <div className="space-y-4">
-        <div className="card space-y-3 p-6 text-center">
-          <CheckCircle2 className="mx-auto size-14 text-[var(--success)]" />
-          <h1 className="text-lg font-semibold">{t('bill.approvedTitle')}</h1>
-          <p className="text-2xl font-bold tabular">
-            {formatMoney(payment.amount, currency)}
-          </p>
-        </div>
-        <Receipt snapshot={snapshot} catalog={catalog} />
+      <div className="space-y-3">
+        {closed && <ClosedBanner />}
+        <EmptyState
+          icon={<ReceiptText className="size-7" />}
+          title={t('orders.empty')}
+          body={t('orders.emptyHint')}
+          action={
+            !closed ? (
+              <Button variant="secondary" onClick={onBrowse}>
+                {t('nav.menu')}
+              </Button>
+            ) : undefined
+          }
+        />
       </div>
     );
-  }
-
-  if (payment?.status === 'PENDING_REVIEW') {
-    return (
-      <div className="space-y-4">
-        <div className="card space-y-3 p-6 text-center">
-          <Hourglass className="mx-auto size-12 animate-pulse text-[var(--warning)]" />
-          <h1 className="text-lg font-semibold">{t('bill.waitingTitle')}</h1>
-          <p className="text-sm muted">{t('bill.waitingBody')}</p>
-          <p className="text-2xl font-bold tabular">
-            {formatMoney(payment.amount, currency)}
-          </p>
-          <div className="flex items-center justify-center gap-2 text-xs muted">
-            <Spinner className="size-3.5" />
-            {t('common.loading')}
-          </div>
-        </div>
-        <Receipt snapshot={snapshot} catalog={catalog} />
-      </div>
-    );
-  }
-
-  if (snapshot.orders.length === 0) {
-    return (
-      <EmptyState
-        icon={<ReceiptText className="size-10" />}
-        title={t('order.none')}
-        action={
-          snapshot.session.status === 'OPEN' ? (
-            <Button variant="secondary" onClick={onBrowse}>
-              {t('nav.menu')}
-            </Button>
-          ) : undefined
-        }
-      />
-    );
-  }
-
-  const awaitingSlip = payment?.status === 'PENDING' || checkout !== null;
-  const awaitingPricing = snapshot.awaitingPricing;
-  const noticeConfigured =
-    catalog.settings.serviceNoticeEnabled &&
-    Boolean(
-      catalog.settings.serviceNoticeImage || L(catalog.settings.serviceNotice),
-    );
-
-  // The notice comes first, then the "this closes your session" confirmation.
-  // Two dialogs rather than one because they ask for different things: one is
-  // information the villa needs the guest to have read, the other is consent
-  // to end the session.
-  function beginCheckout() {
-    if (noticeConfigured) setNoticeOpen(true);
-    else setConfirmOpen(true);
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">{t('bill.title')}</h1>
+      {closed && <ClosedBanner />}
 
-      <Receipt snapshot={snapshot} catalog={catalog} />
+      <h1 className="text-lg font-bold">{t('bill.historyTitle')}</h1>
 
-      {payment?.status === 'REJECTED' && (
-        <div className="rounded-2xl border-l-4 border-[var(--danger)] bg-[var(--danger-soft)] p-4">
-          <p className="flex items-center gap-2 font-semibold text-[var(--danger)]">
-            <XCircle className="size-5" />
-            {t('bill.rejectedTitle')}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="space-y-0.5">
+          <p className="flex items-center gap-1.5 text-xs muted">
+            <CheckCircle2 className="size-3.5 text-[var(--success)]" />
+            {t('bill.paidTotal')}
           </p>
-          {payment.rejectReason && (
-            <p className="text-sm text-[var(--danger)]">
-              {t('bill.rejectedReason', { reason: payment.rejectReason })}
-            </p>
-          )}
-        </div>
-      )}
-
-      {error && (
-        <p className="rounded-xl bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">
-          {error}
-        </p>
-      )}
-
-      {awaitingPricing.length > 0 && (
-        <div className="rounded-2xl border-l-4 border-brand-500 bg-brand-50 p-4 dark:bg-brand-900">
-          <p className="flex items-center gap-2 font-semibold">
-            <Scale className="size-5" />
-            {t('bill.awaitingTitle')}
+          <p className="text-xl font-bold tabular">
+            {formatMoney(snapshot.paidTotal, currency)}
           </p>
-          <p className="text-sm">
-            {t('bill.awaitingBody', {
-              names: awaitingPricing.map((i) => i.name).join(', '),
-            })}
+        </Card>
+        <Card className="space-y-0.5">
+          <p className="flex items-center gap-1.5 text-xs muted">
+            <CircleDollarSign className="size-3.5 text-[var(--danger)]" />
+            {t('bill.outstanding')}
           </p>
-        </div>
-      )}
-
-      {!awaitingSlip ? (
-        <Button
-          full
-          size="lg"
-          loading={busy}
-          disabled={awaitingPricing.length > 0}
-          onClick={beginCheckout}
-        >
-          <CreditCard className="size-5" />
-          {t('bill.checkout')}
-        </Button>
-      ) : (
-        <div className="card space-y-4 p-5">
-          <div className="text-center">
-            <p className="text-sm muted">{t('bill.amountDue')}</p>
-            <p className="text-3xl font-bold tabular">
-              {formatMoney(payment?.amount ?? snapshot.billTotal, currency)}
-            </p>
-          </div>
-
-          {checkout?.qr ? (
-            <div className="space-y-2 text-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={checkout.qr.dataUrl}
-                alt="PromptPay QR"
-                width={256}
-                height={256}
-                className="mx-auto size-56 rounded-xl bg-white p-2"
-              />
-              <p className="text-sm font-medium">{t('bill.scanToPay')}</p>
-              <p className="text-xs muted">
-                {checkout.promptPayName} · {checkout.promptPayId}
-              </p>
-              <p className="text-xs muted">{L(checkout.paymentNote)}</p>
-            </div>
-          ) : (
-            <p className="text-center text-sm muted">
-              {L(catalog.settings.paymentNote)}
-            </p>
-          )}
-
-          <div className="space-y-2 border-t border-[var(--border)] pt-4">
-            <p className="text-sm font-semibold">{t('bill.uploadSlip')}</p>
-            <p className="text-xs muted">{t('bill.uploadHint')}</p>
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                // Clear immediately so picking the same file twice re-fires.
-                e.target.value = '';
-                if (file) upload(file);
-              }}
-            />
-            <Button
-              full
-              size="lg"
-              variant="success"
-              loading={uploading}
-              onClick={() => fileInput.current?.click()}
-            >
-              <Upload className="size-5" />
-              {uploading ? t('bill.uploading') : t('bill.uploadSlip')}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <ServiceNotice
-        open={noticeOpen}
-        onOpenChange={setNoticeOpen}
-        catalog={catalog}
-        onAccept={() => {
-          setNoticeOpen(false);
-          setConfirmOpen(true);
-        }}
-      />
-
-      <Dialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title={t('bill.confirmTitle')}
-        description={t('bill.confirmBody')}
-        footer={
-          <>
-            <Button variant="secondary" full onClick={() => setConfirmOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button full loading={busy} onClick={startCheckout}>
-              {t('common.confirm')}
-            </Button>
-          </>
-        }
-      />
-    </div>
-  );
-}
-
-function Receipt({
-  snapshot,
-  catalog,
-}: {
-  snapshot: SessionSnapshot;
-  catalog: MenuCatalog;
-}) {
-  const { t, L } = useI18n();
-  const currency = catalog.settings.currency;
-  const orders = snapshot.orders.filter((o) => o.status !== 'CANCELLED');
-
-  const subtotal = orders.reduce((sum, o) => sum + o.subtotal, 0);
-  const service = orders.reduce((sum, o) => sum + o.serviceCharge, 0);
-  const vat = orders.reduce((sum, o) => sum + o.vat, 0);
-
-  return (
-    <div className="card space-y-2 p-4 text-sm">
-      <p className="font-semibold">{t('bill.summary')}</p>
-      <ul className="space-y-1 border-t border-[var(--border)] pt-2">
-        {orders.flatMap((order) =>
-          order.items.map((item) => (
-            <li key={item.id} className="flex justify-between gap-3">
-              <span>
-                <span className="tabular">{item.qty}×</span> {L(item.name)}
-              </span>
-              <span className="shrink-0 tabular">
-                {item.priceOnRequest && !item.pricedAt
-                  ? t('item.priceOnRequest')
-                  : formatMoney(item.lineTotal, currency)}
-              </span>
-            </li>
-          )),
-        )}
-      </ul>
-      <div className="space-y-1 border-t border-[var(--border)] pt-2">
-        <div className="flex justify-between">
-          <span>{t('cart.subtotal')}</span>
-          <span className="tabular">{formatMoney(subtotal, currency)}</span>
-        </div>
-        {service > 0 && (
-          <div className="flex justify-between muted">
-            <span>
-              {t('cart.service', { percent: catalog.settings.serviceChargePercent })}
-            </span>
-            <span className="tabular">{formatMoney(service, currency)}</span>
-          </div>
-        )}
-        {catalog.settings.vatPercent > 0 && (
-          <div className="flex justify-between muted">
-            <span>
-              {t(catalog.settings.vatIncluded ? 'cart.vatIncluded' : 'cart.vat', {
-                percent: catalog.settings.vatPercent,
-              })}
-            </span>
-            <span className="tabular">{formatMoney(vat, currency)}</span>
-          </div>
-        )}
-        <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-bold">
-          <span>{t('cart.total')}</span>
-          <span className="tabular">
-            {formatMoney(snapshot.billTotal, currency)}
-          </span>
-        </div>
+          <p
+            className={`text-xl font-bold tabular ${
+              snapshot.outstandingTotal > 0 ? 'text-[var(--danger)]' : ''
+            }`}
+          >
+            {formatMoney(snapshot.outstandingTotal, currency)}
+          </p>
+        </Card>
       </div>
+
+      <Card className="space-y-3">
+        <p className="eyebrow">{t('bill.summary')}</p>
+
+        <ul className="space-y-3">
+          {orders.map((order) => (
+            <li
+              key={order.id}
+              className="space-y-1 border-b border-[var(--line)] pb-3 last:border-0 last:pb-0"
+            >
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="font-semibold tabular">{order.id}</span>
+                <span className="text-xs muted">
+                  {new Date(order.createdAt).toLocaleString(dateLocale, {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+
+              <ul className="space-y-0.5">
+                {order.items.map((item) => (
+                  <li key={item.id} className="flex justify-between gap-3 text-sm">
+                    <span>
+                      <span className="tabular">{item.qty}×</span> {L(item.name)}
+                    </span>
+                    <span className="shrink-0 tabular muted">
+                      {item.priceOnRequest && !item.pricedAt
+                        ? '—'
+                        : formatMoney(item.lineTotal, currency)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex justify-between gap-3 pt-0.5 text-sm font-semibold">
+                <span
+                  className={
+                    isPaid(order.status)
+                      ? 'text-[var(--success)]'
+                      : 'text-[var(--danger)]'
+                  }
+                >
+                  {t(`order.status.${order.status}` as const)}
+                </span>
+                <span className="tabular">
+                  {order.status === 'AWAITING_PRICING'
+                    ? '—'
+                    : formatMoney(order.total, currency)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      {!closed && (
+        <>
+          <p className="flex gap-2 rounded-xl bg-[var(--surface-sunken)] p-3 text-xs muted">
+            <Info className="mt-0.5 size-3.5 shrink-0" />
+            {t('bill.stillOpen')}
+          </p>
+          <Button variant="secondary" full onClick={onBrowse}>
+            {t('orders.orderAgain')}
+          </Button>
+        </>
+      )}
     </div>
   );
 }

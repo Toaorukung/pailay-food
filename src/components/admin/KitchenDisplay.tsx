@@ -16,6 +16,7 @@ import { useLive, useOrderChime, adminFetch } from './adminApi';
 import { Badge, Button, Card, Input, Skeleton, cn } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
 import type { Order, OrderItem, OrderStatus } from '@/lib/types';
+import { isPaid } from '@/lib/types';
 
 const COLUMNS: { status: OrderStatus; label: string; tone: string }[] = [
   { status: 'NEW', label: 'ใหม่', tone: 'border-[var(--danger)]' },
@@ -28,10 +29,18 @@ export function KitchenDisplay() {
   const [sound, setSound] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
-  useOrderChime(sound, newOrderIds);
-
 
   const orders = data?.orders ?? [];
+  // Staff have to weigh these before the guest can pay, so they sit above the
+  // board rather than inside it — nobody should start cooking them yet.
+  const awaitingPricing = orders.filter((o) => o.status === 'AWAITING_PRICING');
+
+  // Unpaid orders never reach the board, so chiming for them would ring at the
+  // wrong moment — only a newly paid ticket is news to the kitchen.
+  const payableNew = newOrderIds.filter((id) =>
+    orders.some((o) => o.id === id && o.status === 'NEW'),
+  );
+  useOrderChime(sound, payableNew);
 
   async function reprice(orderId: string, itemId: string, unitPrice: number) {
     await adminFetch('/api/admin/orders', {
@@ -77,10 +86,34 @@ export function KitchenDisplay() {
         </Button>
       </header>
 
+      {awaitingPricing.length > 0 && (
+        <section className="space-y-3 rounded-2xl border border-[var(--brand)] bg-[var(--brand-soft)] p-4">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--brand-soft-text)]">
+            <Scale className="size-4" />
+            รอชั่งน้ำหนักและแจ้งราคา ({awaitingPricing.length})
+          </h2>
+          <p className="text-xs text-[var(--brand-soft-text)]">
+            แขกยังชำระเงินไม่ได้จนกว่าจะใส่ราคาครบ และครัวจะยังไม่เห็นออเดอร์นี้
+          </p>
+          <div className="grid gap-3 lg:grid-cols-3">
+            {awaitingPricing.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                tone="border-[var(--brand)]"
+                isNew={false}
+                busy={busy === order.id}
+                onReprice={reprice}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         {COLUMNS.map((column) => {
           const columnOrders = orders
-            .filter((o) => o.status === column.status)
+            .filter((o) => isPaid(o.status) && o.status === column.status)
             // Oldest first in the working columns: the kitchen serves a queue,
             // not a stack. Served orders read better newest-first.
             .sort((a, b) =>
@@ -99,7 +132,7 @@ export function KitchenDisplay() {
               </h2>
 
               {columnOrders.length === 0 && (
-                <p className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm muted">
+                <p className="rounded-xl border border-dashed border-[var(--line)] p-6 text-center text-sm muted">
                   ว่าง
                 </p>
               )}
@@ -201,7 +234,7 @@ function OrderCard({
         </p>
       )}
 
-      <ul className="space-y-2 border-t border-[var(--border)] pt-2">
+      <ul className="space-y-2 border-t border-[var(--line)] pt-2">
         {order.items.map((item) => (
           <li key={item.id} className="text-sm">
             <div className="flex justify-between gap-3">
@@ -242,7 +275,7 @@ function OrderCard({
         ))}
       </ul>
 
-      <footer className="flex items-center gap-2 border-t border-[var(--border)] pt-3">
+      <footer className="flex items-center gap-2 border-t border-[var(--line)] pt-3">
         {onAdvance && (
           <Button full loading={busy} onClick={onAdvance}>
             {order.status === 'NEW' ? (
@@ -308,7 +341,7 @@ function PriceEntry({
     <div
       className={cn(
         'ml-6 mt-1.5 space-y-1.5 rounded-lg p-2',
-        item.pricedAt ? 'bg-[var(--success-soft)]' : 'bg-brand-50 dark:bg-brand-900',
+        item.pricedAt ? 'bg-[var(--success-soft)]' : 'bg-[var(--brand-soft)]',
       )}
     >
       <p className="flex items-center gap-1.5 text-xs font-semibold">

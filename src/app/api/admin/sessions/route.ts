@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { requireAdmin } from '@/lib/admin/auth';
 import { listOpenSessions, closeSession, getSession } from '@/lib/session';
-import { sessionOrders, billableTotal } from '@/lib/orders';
+import { sessionOrders, paidTotal, outstandingTotal } from '@/lib/orders';
 import { audit } from '@/lib/audit';
 import { clientIp } from '@/lib/ratelimit';
 import { parseBody } from '@/lib/validation';
@@ -22,7 +22,14 @@ export const GET = handler(async (req: Request) => {
   const withTotals = await Promise.all(
     sessions.map(async (s) => ({
       ...s,
-      billTotal: billableTotal(await sessionOrders(s.id)),
+      ...(await (async () => {
+        const orders = await sessionOrders(s.id);
+        return {
+          orderCount: orders.length,
+          paidTotal: paidTotal(orders),
+          outstandingTotal: outstandingTotal(orders),
+        };
+      })()),
     })),
   );
   return ok({ sessions: withTotals });
@@ -43,10 +50,10 @@ export const POST = handler(async (req: Request) => {
   const existing = await getSession(body.data.sessionId);
   if (!existing) return fail('ไม่พบเซสชันนี้', 404);
 
-  const closed = await closeSession(body.data.sessionId);
+  const closed = await closeSession(body.data.sessionId, auth.admin.name);
   await audit(
     auth.admin,
-    'session.forceClose',
+    'session.expire',
     body.data.sessionId,
     { reason: body.data.reason, villa: existing.villa },
     clientIp(req),

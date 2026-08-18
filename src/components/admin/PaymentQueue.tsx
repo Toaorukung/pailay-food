@@ -107,14 +107,14 @@ export function PaymentQueue() {
                   {formatMoney(payment.amount)}
                 </p>
                 <p className="text-xs muted">
-                  {payment.orderIds.length} ออเดอร์
+                  {payment.orderId}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setZoom(`/api/admin/slip/${payment.id}`)}
-                className="group relative block w-full overflow-hidden rounded-xl border border-[var(--border)]"
+                className="group relative block w-full overflow-hidden rounded-xl border border-[var(--line)]"
               >
                 {/* Served through an authenticated proxy — the blob URL never
                     reaches the browser. */}

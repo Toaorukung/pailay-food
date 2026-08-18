@@ -1,5 +1,5 @@
 import { kv, K } from './kv';
-import { orderId as newOrderId } from './ids';
+import { orderId as newOrderId, paymentId as newPaymentId } from './ids';
 import { computeTotals } from './pricing';
 import { round2 } from './money';
 import { clearCart, revalidateCart } from './cart';
@@ -7,24 +7,38 @@ import { persist } from './sheets/queue';
 import { TABS } from './sheets/schema';
 import type {
   Cart,
+  CartLine,
   GuestSession,
   MenuCatalog,
   Order,
   OrderItem,
   OrderStatus,
+  Payment,
 } from './types';
+import { isPaid } from './types';
 
 /**
  * Orders live in Redis and are mirrored into Sheets by the write-behind queue.
  * The kitchen display reads Redis, so a Sheets outage never stops service.
+ *
+ * An order is paid before it is cooked. Confirming a cart creates the order
+ * and its payment together, in one of two states:
+ *
+ *   AWAITING_PRICING  the order contains something sold by weight, so staff
+ *                     have to weigh and price it before a total exists
+ *   UNPAID            the total is known and the guest can transfer
+ *
+ * From there: slip uploaded -> AWAITING_PAYMENT -> staff verify -> NEW, which
+ * is the first moment the kitchen sees it.
  */
 
-const ORDER_RETENTION_SECONDS = 3 * 24 * 60 * 60;
+const ORDER_RETENTION_SECONDS = 30 * 24 * 60 * 60;
 const IDEMPOTENCY_TTL_SECONDS = 600;
 
 export interface PlaceOrderResult {
   ok: boolean;
   order?: Order;
+  payment?: Payment;
   error?: string;
   removed?: { name: string }[];
   repriced?: { name: string; was: number; now: number }[];
@@ -46,7 +60,12 @@ export async function placeOrder(
     const existingId = await kv().get<string>(idemKey).catch(() => null);
     if (existingId && existingId !== 'pending') {
       const existing = await getOrder(existingId);
-      if (existing) return { ok: true, order: existing };
+      if (existing) {
+        const payment = await kv()
+          .get<Payment>(K.payment(existing.paymentId))
+          .catch(() => null);
+        return { ok: true, order: existing, payment: payment ?? undefined };
+      }
     }
     return { ok: false, error: 'กำลังส่งออเดอร์อยู่ กรุณารอสักครู่' };
   }
@@ -71,6 +90,7 @@ export async function placeOrder(
 
   const totals = computeTotals(lines, catalog.settings);
   const id = newOrderId();
+  const paymentId = newPaymentId();
   const createdAt = new Date().toISOString();
 
   const items: OrderItem[] = lines.map((l, i) => ({
@@ -79,7 +99,7 @@ export async function placeOrder(
     name: l.name,
     qty: l.qty,
     unitPrice: l.unitPrice,
-    lineTotal: Math.round((l.unitPrice * l.qty + Number.EPSILON) * 100) / 100,
+    lineTotal: round2(l.unitPrice * l.qty),
     options: l.options,
     note: l.note,
     allergenAck: l.allergenAck,
@@ -88,6 +108,10 @@ export async function placeOrder(
     pricedAt: null,
   }));
 
+  // Something on this ticket has to go on a scale before there is a price to
+  // charge, so the guest cannot pay yet.
+  const needsPricing = totals.unpricedCount > 0;
+
   const order: Order = {
     id,
     sessionId: session.id,
@@ -95,24 +119,42 @@ export async function placeOrder(
     tableLabel: session.tableLabel,
     villa: session.villa,
     createdAt,
-    status: 'NEW',
+    status: needsPricing ? 'AWAITING_PRICING' : 'UNPAID',
     items,
     subtotal: totals.subtotal,
     serviceCharge: totals.serviceCharge,
     vat: totals.vat,
     total: totals.total,
+    paymentId,
     // Snapshotted so the kitchen ticket stays correct even if the guest edits
     // their allergy profile afterwards.
     allergyProfile: session.allergyProfile,
-    allergyLabels: session.allergyProfile.map((id) => {
-      const allergen = catalog.allergens.find((a) => a.id === id);
-      return allergen ? allergen.name.th || allergen.name.en : id;
+    allergyLabels: session.allergyProfile.map((allergenId) => {
+      const allergen = catalog.allergens.find((a) => a.id === allergenId);
+      return allergen ? allergen.name.th || allergen.name.en : allergenId;
     }),
     geoStatus: session.geoStatus,
     locale: session.locale,
   };
 
-  await kv().set(K.order(id), order, { ex: ORDER_RETENTION_SECONDS });
+  const payment: Payment = {
+    id: paymentId,
+    sessionId: session.id,
+    tableLabel: session.tableLabel,
+    villa: session.villa,
+    orderId: id,
+    amount: order.total,
+    method: 'promptpay',
+    status: 'PENDING',
+    slipUrl: null,
+    slipUploadedAt: null,
+    verifiedBy: null,
+    verifiedAt: null,
+    rejectReason: null,
+    createdAt,
+  };
+
+  await saveOrder(order);
   await kv().rpush(K.sessionOrders(session.id), id).catch(() => {});
   await kv()
     .zadd(K.liveOrders, { score: Date.parse(createdAt), member: id })
@@ -121,19 +163,28 @@ export async function placeOrder(
     .sadd(K.ordersByDay(createdAt.slice(0, 10)), id)
     .catch(() => {});
 
+  const { savePayment } = await import('./payments');
+  await savePayment(payment);
+
   await kv().set(idemKey, id, { ex: IDEMPOTENCY_TTL_SECONDS }).catch(() => {});
   await clearCart(session.id);
-  await persistOrder(order);
 
   return {
     ok: true,
     order,
+    payment,
     removed: removed.map((l) => ({ name: l.name.th || l.name.en })),
     repriced: repriced.map((l) => {
       const now = lines.find((x) => x.key === l.key)?.unitPrice ?? l.unitPrice;
       return { name: l.name.th || l.name.en, was: l.unitPrice, now };
     }),
   };
+}
+
+async function saveOrder(order: Order): Promise<Order> {
+  await kv().set(K.order(order.id), order, { ex: ORDER_RETENTION_SECONDS });
+  await persistOrder(order);
+  return order;
 }
 
 async function persistOrder(order: Order): Promise<void> {
@@ -171,6 +222,8 @@ async function persistOrder(order: Order): Promise<void> {
   }
 }
 
+// ── Reads ───────────────────────────────────────────────────
+
 export async function getOrder(id: string): Promise<Order | null> {
   return (await kv().get<Order>(K.order(id)).catch(() => null)) ?? null;
 }
@@ -192,7 +245,13 @@ export async function sessionOrders(sessionId: string): Promise<Order[]> {
   return getOrders(ids ?? []);
 }
 
-/** Kitchen display feed. Newest first, last 24 hours. */
+/**
+ * Kitchen display feed.
+ *
+ * Deliberately returns every order, paid or not: the display filters to the
+ * cooking columns itself, and the same feed drives the dashboard, which needs
+ * to show what is still waiting on a price or a slip.
+ */
 export async function liveOrders(sinceHours = 24): Promise<Order[]> {
   const since = Date.now() - sinceHours * 60 * 60 * 1000;
   const ids = await kv()
@@ -202,46 +261,69 @@ export async function liveOrders(sinceHours = 24): Promise<Order[]> {
   return orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+// ── Transitions ─────────────────────────────────────────────
+
 export async function setOrderStatus(
   id: string,
   status: OrderStatus,
 ): Promise<Order | null> {
   const order = await getOrder(id);
   if (!order) return null;
-  const next = { ...order, status };
-  await kv().set(K.order(id), next, { ex: ORDER_RETENTION_SECONDS });
-  await persist(TABS.Orders, id, {
-    order_id: next.id,
-    session_id: next.sessionId,
-    table_id: next.tableId,
-    created_at: next.createdAt,
-    status: next.status,
-    item_count: next.items.reduce((n, i) => n + i.qty, 0),
-    subtotal: next.subtotal,
-    service_charge: next.serviceCharge,
-    vat: next.vat,
-    total: next.total,
-  });
-  return next;
+  return saveOrder({ ...order, status });
 }
 
-/** Bill for a session: everything not cancelled. */
-export function billableTotal(orders: Order[]): number {
-  return (
-    Math.round(
-      orders
-        .filter((o) => o.status !== 'CANCELLED')
-        .reduce((sum, o) => sum + o.total, 0) * 100 + Number.EPSILON,
-    ) / 100
+/**
+ * Called when a slip lands. Moves the order out of the guest's hands and into
+ * the staff verification queue.
+ */
+export async function markAwaitingPayment(id: string): Promise<Order | null> {
+  const order = await getOrder(id);
+  if (!order) return null;
+  if (order.status !== 'UNPAID' && order.status !== 'AWAITING_PAYMENT') {
+    return order;
+  }
+  return saveOrder({ ...order, status: 'AWAITING_PAYMENT' });
+}
+
+/** Payment verified. This is the moment the kitchen is told to start. */
+export async function markOrderPaid(id: string): Promise<Order | null> {
+  const order = await getOrder(id);
+  if (!order) return null;
+  if (isPaid(order.status)) return order;
+  return saveOrder({ ...order, status: 'NEW' });
+}
+
+/** Slip rejected — hand the order back to the guest to pay again. */
+export async function markOrderUnpaid(id: string): Promise<Order | null> {
+  const order = await getOrder(id);
+  if (!order) return null;
+  if (isPaid(order.status)) return order;
+  return saveOrder({ ...order, status: 'UNPAID' });
+}
+
+// ── Money ───────────────────────────────────────────────────
+
+/** What the villa has actually paid across the whole session. */
+export function paidTotal(orders: Order[]): number {
+  return round2(
+    orders.filter((o) => isPaid(o.status)).reduce((sum, o) => sum + o.total, 0),
+  );
+}
+
+/** Ordered but not yet settled — shown to the guest as outstanding. */
+export function outstandingTotal(orders: Order[]): number {
+  return round2(
+    orders
+      .filter((o) => o.status === 'UNPAID' || o.status === 'AWAITING_PAYMENT')
+      .reduce((sum, o) => sum + o.total, 0),
   );
 }
 
 /**
- * Lines the kitchen has weighed but nobody has priced yet.
+ * Lines the kitchen has to weigh before the guest can be charged.
  *
- * Checkout is blocked while this is non-empty. Letting a guest pay a total
- * that silently excludes a kilo of grouper is the one bug in this system that
- * loses real money on every occurrence.
+ * An order sitting in AWAITING_PRICING is dead in the water until staff act,
+ * so both the guest's screen and the kitchen display surface it.
  */
 export function unpricedItems(
   orders: Order[],
@@ -265,7 +347,8 @@ export function unpricedItems(
  *
  * Order totals are recomputed from the item list rather than adjusted by a
  * delta, so a correction after a typo lands on the right number instead of
- * compounding the mistake.
+ * compounding the mistake. Once nothing is left to weigh the order moves to
+ * UNPAID and the guest can pay it.
  */
 export async function repriceOrderItem(
   orderId: string,
@@ -277,9 +360,8 @@ export async function repriceOrderItem(
   const order = await getOrder(orderId);
   if (!order) return null;
 
-  const item = order.items.find((i) => i.id === itemId);
-  if (!item) return null;
-  if (!item.priceOnRequest) return null;
+  const target = order.items.find((i) => i.id === itemId);
+  if (!target || !target.priceOnRequest) return null;
 
   const items = order.items.map((i) =>
     i.id === itemId
@@ -295,22 +377,21 @@ export async function repriceOrderItem(
 
   // Rebuild the order's money from its lines using the same maths the cart
   // used, so a repriced order and a normal one are totalled identically.
-  const totals = computeTotals(
-    items.map((i) => ({
-      key: i.id,
-      menuId: i.menuId,
-      name: i.name,
-      qty: i.qty,
-      unitPrice: i.unitPrice,
-      options: i.options,
-      note: i.note,
-      allergenAck: i.allergenAck,
-      priceOnRequest: i.priceOnRequest,
-      addedAt: order.createdAt,
-    })),
-    settings,
-  );
+  const lines: CartLine[] = items.map((i) => ({
+    key: i.id,
+    menuId: i.menuId,
+    name: i.name,
+    qty: i.qty,
+    unitPrice: i.unitPrice,
+    options: i.options,
+    note: i.note,
+    allergenAck: i.allergenAck,
+    priceOnRequest: i.priceOnRequest,
+    addedAt: order.createdAt,
+  }));
+  const totals = computeTotals(lines, settings);
 
+  const stillWaiting = totals.unpricedCount > 0;
   const next: Order = {
     ...order,
     items,
@@ -318,9 +399,17 @@ export async function repriceOrderItem(
     serviceCharge: totals.serviceCharge,
     vat: totals.vat,
     total: totals.total,
+    status:
+      order.status === 'AWAITING_PRICING' && !stillWaiting
+        ? 'UNPAID'
+        : order.status,
   };
 
-  await kv().set(K.order(orderId), next, { ex: ORDER_RETENTION_SECONDS });
-  await persistOrder(next);
+  await saveOrder(next);
+
+  // The payment was raised with a placeholder amount; it has to follow.
+  const { updatePaymentAmount } = await import('./payments');
+  await updatePaymentAmount(next.paymentId, next.total);
+
   return next;
 }

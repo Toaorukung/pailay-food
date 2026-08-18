@@ -38,9 +38,13 @@ function required(name: string): string {
 
 required('GOOGLE_SERVICE_ACCOUNT_KEY_BASE64');
 required('GOOGLE_SHEET_ID');
-required('UPSTASH_REDIS_REST_URL');
-required('UPSTASH_REDIS_REST_TOKEN');
 const tableSecret = required('TABLE_SECRET');
+
+// Redis is not required to seed. The Sheets client uses it to cache its access
+// token, and falls back to an in-process store when it is absent — which is
+// exactly right for a one-shot script. Vercel's Upstash integration also names
+// these KV_REST_API_*, so demanding the UPSTASH_ spelling would reject a
+// perfectly configured project.
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(
   /\/+$/,
   '',

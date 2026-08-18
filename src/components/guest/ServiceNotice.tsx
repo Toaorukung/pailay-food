@@ -60,7 +60,7 @@ export function ServiceNotice({
         {serviceNoticeImage && (
           // Tall poster on a small screen: let it scroll rather than shrinking
           // the text to unreadable.
-          <div className="max-h-[45svh] overflow-y-auto rounded-xl border border-[var(--border)]">
+          <div className="max-h-[45svh] overflow-y-auto rounded-xl border border-[var(--line)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={serviceNoticeImage}

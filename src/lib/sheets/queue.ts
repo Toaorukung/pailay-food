@@ -1,5 +1,6 @@
 import { after } from 'next/server';
 import { kv, K } from '../kv';
+import { sheetsConfigured } from '../demo';
 import { append, batchUpdate } from './client';
 import {
   HEADERS,
@@ -42,6 +43,11 @@ export async function enqueue(
   id: string,
   obj: Record<string, unknown>,
 ): Promise<void> {
+  // Nowhere to sync to. Redis already holds the authoritative operational
+  // copy, so the app is fully functional; only the spreadsheet mirror is
+  // missing, and queueing rows nobody will ever drain just leaks memory.
+  if (!sheetsConfigured()) return;
+
   const op: SyncOp = { tab, id, obj, attempts: 0, queuedAt: new Date().toISOString() };
   try {
     await kv().rpush(K.syncQueue, JSON.stringify(op));
@@ -87,6 +93,10 @@ interface DrainResult {
 }
 
 export async function drain(): Promise<DrainResult> {
+  if (!sheetsConfigured()) {
+    return { processed: 0, appended: 0, updated: 0, failed: 0, skipped: true };
+  }
+
   const empty: DrainResult = {
     processed: 0, appended: 0, updated: 0, failed: 0, skipped: false,
   };

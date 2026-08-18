@@ -3,7 +3,7 @@ import { verifyTable } from '@/lib/qr';
 import { getTable } from '@/lib/tables';
 import { createOrJoinSession, sessionCookie } from '@/lib/session';
 import { clientIp, rateLimit } from '@/lib/ratelimit';
-import { parseLocale, LOCALE_COOKIE } from '@/i18n/provider';
+import { parseLocale, LOCALE_COOKIE } from '@/i18n/locale';
 
 export const dynamic = 'force-dynamic';
 

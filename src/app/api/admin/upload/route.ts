@@ -1,7 +1,6 @@
-import { put } from '@vercel/blob';
 import { requireAdmin } from '@/lib/admin/auth';
 import { processUpload, UploadError, MAX_UPLOAD_BYTES } from '@/lib/images';
-import { randomId } from '@/lib/ids';
+import { putImage, publicImageUrl } from '@/lib/storage';
 import { handler, fail, ok } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -39,16 +38,18 @@ export const POST = handler(async (req: Request) => {
     return fail('ประมวลผลรูปไม่สำเร็จ', 400);
   }
 
-  const blob = await put(
-    `menu/${randomId(10)}.${processed.extension}`,
+  const stored = await putImage(
+    'menu',
     processed.data,
-    {
-      access: 'public',
-      contentType: processed.contentType,
-      addRandomSuffix: true,
-      cacheControlMaxAge: 60 * 60 * 24 * 30,
-    },
+    processed.contentType,
+    processed.extension,
   );
 
-  return ok({ url: blob.url, width: processed.width, height: processed.height });
+  // Menu photos are rendered by the guest browser, so hand back the address it
+  // can actually fetch rather than the internal locator.
+  return ok({
+    url: publicImageUrl(stored.url),
+    width: processed.width,
+    height: processed.height,
+  });
 });

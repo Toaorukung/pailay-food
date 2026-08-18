@@ -1,30 +1,40 @@
 import { getCart } from './cart';
-import { sessionOrders, billableTotal, unpricedItems } from './orders';
-import { getPayment } from './payments';
+import {
+  sessionOrders,
+  paidTotal,
+  outstandingTotal,
+  unpricedItems,
+} from './orders';
+import { sessionPayments } from './payments';
 import { computeTotals } from './pricing';
 import { getCatalog } from './menu-cache';
 import type { Cart, GuestSession, Order, Payment } from './types';
 
 /**
- * Everything the guest UI needs in one round trip: session state, cart, order
- * history, and the live payment. The client polls this while waiting for the
- * kitchen or for slip approval, so it is deliberately a single cheap Redis
- * read set rather than several endpoints.
+ * Everything the guest UI needs in one round trip: session state, the working
+ * cart, every order placed on this session with its payment, and the running
+ * totals. The client polls this while waiting for the kitchen or for a slip to
+ * be checked, so it is deliberately a single cheap Redis read set rather than
+ * several endpoints.
  */
 export interface SessionSnapshot {
   session: PublicSession;
   cart: Cart;
   cartTotals: ReturnType<typeof computeTotals>;
+  /** Oldest first — this is the villa's record of the whole stay. */
   orders: Order[];
-  /** Sum of priced lines only. Partial while `awaitingPricing` is non-empty. */
-  billTotal: number;
+  /** Keyed by order id, so a card can show its own payment state. */
+  payments: Record<string, PublicPayment>;
+  /** Settled and verified. */
+  paidTotal: number;
+  /** Ordered but not yet confirmed as paid. */
+  outstandingTotal: number;
   /**
-   * Lines the kitchen still has to weigh and price. Checkout is blocked until
-   * this is empty, and the bill page says so rather than showing a total the
-   * guest would be wrong to trust.
+   * Lines the kitchen still has to weigh. An order holding any of these cannot
+   * be paid, and the guest's screen says so rather than showing a total they
+   * would be wrong to trust.
    */
   awaitingPricing: { orderId: string; itemId: string; name: string; qty: number }[];
-  payment: PublicPayment | null;
   menuVersion: number;
 }
 
@@ -45,6 +55,7 @@ export interface PublicSession {
 
 export interface PublicPayment {
   id: string;
+  orderId: string;
   status: Payment['status'];
   amount: number;
   rejectReason: string | null;
@@ -72,6 +83,7 @@ export function publicSession(s: GuestSession): PublicSession {
 export function publicPayment(p: Payment): PublicPayment {
   return {
     id: p.id,
+    orderId: p.orderId,
     status: p.status,
     amount: p.amount,
     rejectReason: p.rejectReason,
@@ -89,18 +101,21 @@ export async function buildSnapshot(
     sessionOrders(session.id),
   ]);
 
-  const payment = session.activePaymentId
-    ? await getPayment(session.activePaymentId)
-    : null;
+  const payments = await sessionPayments(orders.map((o) => o.paymentId));
+  const byOrder: Record<string, PublicPayment> = {};
+  for (const payment of payments) {
+    byOrder[payment.orderId] = publicPayment(payment);
+  }
 
   return {
     session: publicSession(session),
     cart,
     cartTotals: computeTotals(cart.lines, catalog.settings),
     orders,
-    billTotal: billableTotal(orders),
+    payments: byOrder,
+    paidTotal: paidTotal(orders),
+    outstandingTotal: outstandingTotal(orders),
     awaitingPricing: unpricedItems(orders),
-    payment: payment ? publicPayment(payment) : null,
     menuVersion: catalog.version,
   };
 }

@@ -17,14 +17,17 @@ import { DEFAULT_LOCALE } from './types';
 export const SESSION_COOKIE = 'pf_sess';
 
 /**
- * Session lifecycle — this is the mechanism behind "once you check out, the
- * old link stops working and you have to scan again".
+ * Session lifecycle.
  *
  * The printed QR is static per villa. Scanning it mints a fresh random session
- * id and redirects to /s/<id>. When the bill is settled the session flips to
- * CLOSED; that id then serves a read-only receipt forever and every mutating
- * route refuses it. Getting back to ordering means physically scanning the
- * sticker in the villa again.
+ * id and redirects to /s/<id>. That session then lasts the whole stay: the
+ * villa orders, pays, eats and orders again on the same link, with no need to
+ * scan between rounds.
+ *
+ * It ends when staff expire it from /admin/sessions. After that the id still
+ * serves the villa's full order history — which is the reason it is kept —
+ * but every mutating route refuses it, and the next scan of the sticker opens
+ * a clean session for the next guest.
  *
  * Two independent checks protect a session, and both are enforced server-side
  * on every mutation, not just when rendering a page:
@@ -147,7 +150,7 @@ export async function createOrJoinSession(
     geoStatus: 'UNKNOWN',
     distanceM: null,
     locale,
-    activePaymentId: null,
+    closedBy: null,
   };
 
   await saveSession(session);
@@ -174,16 +177,20 @@ export async function updateSession(
   return next;
 }
 
-export async function unlockSession(id: string): Promise<GuestSession | null> {
-  return updateSession(id, { status: 'OPEN', activePaymentId: null });
-}
-
 /**
- * Terminal. The session id remains readable (the guest keeps their receipt)
- * but can never order again, and the villa's pointer is dropped so the next
- * scan starts a clean session.
+ * Ends a stay. Staff do this from /admin/sessions when the villa checks out;
+ * nothing else closes a session, so a villa can order, pay, eat and order
+ * again all evening on one scan.
+ *
+ * The id stays readable afterwards — that is the point. The guest keeps a
+ * record of every order they placed and what each one cost. It just cannot
+ * accept new ones, and the villa's pointer is dropped so the next guest's
+ * scan starts clean.
  */
-export async function closeSession(id: string): Promise<GuestSession | null> {
+export async function closeSession(
+  id: string,
+  closedBy: string | null = null,
+): Promise<GuestSession | null> {
   const current = await getSession(id);
   if (!current) return null;
 
@@ -191,6 +198,7 @@ export async function closeSession(id: string): Promise<GuestSession | null> {
     ...current,
     status: 'CLOSED',
     closedAt: new Date().toISOString(),
+    closedBy,
   };
   await saveSession(closed);
 
@@ -219,6 +227,7 @@ function sessionRow(s: GuestSession): Record<string, unknown> {
     geo_status: s.geoStatus,
     distance_m: s.distanceM ?? '',
     locale: s.locale,
+    closed_by: s.closedBy ?? '',
   };
 }
 
@@ -228,29 +237,18 @@ export type Guard =
   | { ok: true; session: GuestSession }
   | { ok: false; status: number; code: GuardFailure; message: string };
 
-export type GuardFailure =
-  | 'NOT_FOUND'
-  | 'CLOSED'
-  | 'LOCKED'
-  | 'NOT_YOUR_SESSION';
+export type GuardFailure = 'NOT_FOUND' | 'CLOSED' | 'NOT_YOUR_SESSION';
 
 const MESSAGES: Record<GuardFailure, string> = {
   NOT_FOUND: 'ไม่พบเซสชันนี้ กรุณาสแกน QR ในวิลล่าอีกครั้ง',
-  CLOSED: 'เซสชันนี้ปิดแล้ว กรุณาสแกน QR ใหม่เพื่อสั่งอาหารอีกครั้ง',
-  LOCKED: 'กำลังดำเนินการชำระเงิน ไม่สามารถแก้ไขรายการได้',
+  CLOSED: 'เซสชันนี้ปิดแล้ว หากต้องการสั่งอีกครั้ง กรุณาสแกน QR ในวิลล่าใหม่',
   NOT_YOUR_SESSION: 'กรุณาสแกน QR ในวิลล่าเพื่อเริ่มสั่งอาหาร',
 };
 
-/**
- * The gate every mutating guest route must pass through.
- *
- * `allowLocked` exists for the payment routes, which legitimately act on a
- * session whose bill is already frozen.
- */
+/** The gate every mutating guest route must pass through. */
 export async function requireSession(
   req: Request,
   sessionId: string,
-  opts: { allowLocked?: boolean } = {},
 ): Promise<Guard> {
   const session = await getSession(sessionId);
   if (!session) {
@@ -269,9 +267,6 @@ export async function requireSession(
 
   if (session.status === 'CLOSED') {
     return { ok: false, status: 403, code: 'CLOSED', message: MESSAGES.CLOSED };
-  }
-  if (session.status === 'LOCKED' && !opts.allowLocked) {
-    return { ok: false, status: 409, code: 'LOCKED', message: MESSAGES.LOCKED };
   }
 
   return { ok: true, session };

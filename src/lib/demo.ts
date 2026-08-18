@@ -29,7 +29,12 @@ export function sheetsConfigured(): boolean {
 }
 
 export function redisConfigured(): boolean {
-  return has('UPSTASH_REDIS_REST_URL') && has('UPSTASH_REDIS_REST_TOKEN');
+  // Vercel's Upstash integration writes KV_REST_API_*; a database configured
+  // by hand uses UPSTASH_REDIS_REST_*. Either pair counts as configured.
+  return (
+    (has('UPSTASH_REDIS_REST_URL') && has('UPSTASH_REDIS_REST_TOKEN')) ||
+    (has('KV_REST_API_URL') && has('KV_REST_API_TOKEN'))
+  );
 }
 
 export function blobConfigured(): boolean {

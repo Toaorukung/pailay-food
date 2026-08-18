@@ -1,5 +1,7 @@
 import { kv, K, MENU_TTL_SECONDS } from './kv';
 import { loadCatalogFromSheets } from './sheets/repo';
+import { standaloneMenu } from './demo';
+import { bundledCatalog } from '@/data/bundled-catalog';
 import type { MenuCatalog } from './types';
 
 /**
@@ -57,7 +59,11 @@ export async function getCatalog(): Promise<MenuCatalog> {
 
 export async function refresh(): Promise<MenuCatalog> {
   const version = await currentVersion();
-  const catalog = await loadCatalogFromSheets(version);
+  // No spreadsheet configured: serve the menu compiled into the app. Same
+  // source as the seed script, so the dishes are identical either way.
+  const catalog = standaloneMenu()
+    ? bundledCatalog(version)
+    : await loadCatalogFromSheets(version);
   const entry: CacheEntry = {
     catalog,
     staleAt: Date.now() + MENU_TTL_SECONDS * 1000,

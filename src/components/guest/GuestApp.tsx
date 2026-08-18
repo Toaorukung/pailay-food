@@ -13,6 +13,7 @@ import {
 import { useI18n } from '@/i18n/provider';
 import { LOCALE_LABELS } from '@/i18n/dict';
 import { cn, Alert } from '@/components/ui';
+import { ThemeToggle } from '@/components/theme';
 import { LOCALES, type MenuCatalog, type Locale } from '@/lib/types';
 import type { SessionSnapshot } from '@/lib/snapshot';
 import { guestApi } from './api';
@@ -70,12 +71,19 @@ export function GuestApp({
   }, [snapshot.menuVersion, catalog.version]);
 
   // ── Polling ───────────────────────────────────────────────
-  const awaitingStaff =
-    snapshot.payment?.status === 'PENDING_REVIEW' ||
-    snapshot.orders.some((o) => o.status === 'NEW' || o.status === 'COOKING');
+  // Poll faster while something is actually moving: a slip being checked, a
+  // price being set, or food being cooked.
+  const awaitingStaff = snapshot.orders.some(
+    (o) =>
+      o.status === 'AWAITING_PRICING' ||
+      o.status === 'AWAITING_PAYMENT' ||
+      o.status === 'NEW' ||
+      o.status === 'COOKING',
+  );
 
   useEffect(() => {
-    if (isClosed && snapshot.payment?.status === 'APPROVED') return;
+    // A closed session is a static record; nothing will change again.
+    if (isClosed) return;
     const interval = awaitingStaff ? POLL_ACTIVE_MS : POLL_IDLE_MS;
 
     let timer: ReturnType<typeof setTimeout>;
@@ -96,7 +104,7 @@ export function GuestApp({
       clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [awaitingStaff, isClosed, refresh, snapshot.payment?.status]);
+  }, [awaitingStaff, isClosed, refresh]);
 
   // ── Geofence ──────────────────────────────────────────────
   const geoAsked = useRef(false);
@@ -139,7 +147,12 @@ export function GuestApp({
 
   const cartCount = snapshot.cart.lines.reduce((n, l) => n + l.qty, 0);
   const activeOrders = snapshot.orders.filter(
-    (o) => o.status === 'NEW' || o.status === 'COOKING',
+    (o) =>
+      o.status === 'UNPAID' ||
+      o.status === 'AWAITING_PRICING' ||
+      o.status === 'AWAITING_PAYMENT' ||
+      o.status === 'NEW' ||
+      o.status === 'COOKING',
   ).length;
 
   const allergenNames = useMemo(() => {
@@ -158,27 +171,29 @@ export function GuestApp({
   ];
 
   return (
-    <div className="flex min-h-svh flex-col bg-[var(--surface)]">
-      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)]/95 backdrop-blur safe-top">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-2.5">
+    <div className="flex min-h-svh flex-col bg-[var(--canvas)]">
+      <header className="brand-gradient sticky top-0 z-30 text-white shadow-[var(--shadow-md)] safe-top">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold leading-tight">
+            <p className="truncate text-[17px] font-bold leading-tight tracking-tight">
               {catalog.settings.shopName}
             </p>
-            <p className="truncate text-xs muted">
+            <p className="truncate text-xs text-white/75">
               {snapshot.session.villa
                 ? `${t('session.villa')} ${snapshot.session.villa}`
                 : snapshot.session.tableLabel}
             </p>
           </div>
 
+          <ThemeToggle tone="onBrand" />
+
           <label className="relative">
             <span className="sr-only">{t('lang.label')}</span>
-            <Globe className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 muted" />
+            <Globe className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-white/80" />
             <select
               value={locale}
               onChange={(e) => setLocale(e.target.value as Locale)}
-              className="h-9 appearance-none rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] pl-7 pr-2 text-sm"
+              className="h-9 appearance-none rounded-lg border border-white/25 bg-white/15 pl-8 pr-2.5 text-sm font-medium text-white backdrop-blur [&>option]:text-[var(--text)]"
             >
               {LOCALES.map((l) => (
                 <option key={l} value={l}>
@@ -193,7 +208,7 @@ export function GuestApp({
           <button
             type="button"
             onClick={() => canOrder && setAllergyOpen(true)}
-            className="flex w-full items-center gap-2 border-t border-[var(--border)] bg-[var(--danger-soft)] px-4 py-1.5 text-left text-xs text-[var(--danger)]"
+            className="flex w-full items-center gap-2 bg-[var(--danger)] px-4 py-2 text-left text-xs font-semibold text-white"
           >
             <TriangleAlert className="size-3.5 shrink-0" />
             <span className="truncate">
@@ -240,22 +255,21 @@ export function GuestApp({
           <OrdersView
             catalog={catalog}
             snapshot={snapshot}
-            onBrowse={() => setTab('menu')}
-            onBill={() => setTab('bill')}
             canOrder={canOrder}
+            onBrowse={() => setTab('menu')}
+            onChanged={refresh}
           />
         )}
         {tab === 'bill' && (
           <BillView
             catalog={catalog}
             snapshot={snapshot}
-            onChanged={refresh}
             onBrowse={() => setTab('menu')}
           />
         )}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface-raised)]/95 backdrop-blur safe-bottom">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] glass safe-bottom">
         <div className="mx-auto flex w-full max-w-3xl">
           {tabs.map(({ id, icon: Icon, label, badge }) => (
             <button
@@ -264,12 +278,20 @@ export function GuestApp({
               onClick={() => setTab(id)}
               aria-current={tab === id ? 'page' : undefined}
               className={cn(
-                'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
-                tab === id ? 'text-brand-600' : 'muted',
+                'relative flex flex-1 flex-col items-center gap-1 py-2.5',
+                'text-[11px] font-semibold transition-colors',
+                'active:scale-95 active:duration-75',
+                tab === id ? 'text-[var(--brand)]' : 'text-[var(--text-subtle)]',
               )}
             >
+              {tab === id && (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-[var(--brand)]"
+                />
+              )}
               <span className="relative">
-                <Icon className="size-5" />
+                <Icon className="size-[1.35rem]" />
                 {Boolean(badge) && (
                   <span className="absolute -right-2.5 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold leading-4 text-white">
                     {badge}

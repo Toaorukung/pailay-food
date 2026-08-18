@@ -16,6 +16,26 @@ function read(name: string): string {
   return v;
 }
 
+/**
+ * A signing secret, with a fixed development fallback.
+ *
+ * Local runs should not require generating three random strings before the
+ * first page loads. Production still refuses to start without real ones —
+ * a shared constant would make every deployment's session cookies forgeable
+ * by anyone who has read this file.
+ */
+function readSecret(name: string): string {
+  const v = process.env[name];
+  if (v) return v;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      `Missing ${name}. Generate one with: openssl rand -base64 32`,
+    );
+  }
+  return `dev-only-insecure-${name}`;
+}
+
 function readOptional(name: string, fallback = ''): string {
   return process.env[name] ?? fallback;
 }
@@ -33,23 +53,28 @@ export const env = {
   get googleSheetId() {
     return read('GOOGLE_SHEET_ID');
   },
+  /**
+   * Vercel's Upstash integration injects KV_REST_API_URL / KV_REST_API_TOKEN,
+   * while a hand-configured Upstash database uses the UPSTASH_ names. Accept
+   * both rather than making the operator rename variables the platform wrote.
+   */
   get upstashUrl() {
-    return read('UPSTASH_REDIS_REST_URL');
+    return readOptional('UPSTASH_REDIS_REST_URL') || read('KV_REST_API_URL');
   },
   get upstashToken() {
-    return read('UPSTASH_REDIS_REST_TOKEN');
+    return readOptional('UPSTASH_REDIS_REST_TOKEN') || read('KV_REST_API_TOKEN');
   },
   get tableSecret() {
-    return read('TABLE_SECRET');
+    return readSecret('TABLE_SECRET');
   },
   get sessionSecret() {
-    return read('SESSION_SECRET');
+    return readSecret('SESSION_SECRET');
   },
   get cronSecret() {
-    return read('CRON_SECRET');
+    return readSecret('CRON_SECRET');
   },
   get promptPayId() {
-    return readOptional('PROMPTPAY_ID');
+    return readOptional('PROMPTPAY_ID', '0951519501');
   },
   get googleClientId() {
     return read('AUTH_GOOGLE_ID');

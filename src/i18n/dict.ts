@@ -123,7 +123,7 @@ export const STRINGS = {
     'geo.denied': 'ไม่ได้เปิดใช้ตำแหน่ง — ยังสั่งอาหารได้ตามปกติ',
 
     'session.closedTitle': 'เซสชันนี้ปิดแล้ว',
-    'session.closedBody': 'บิลนี้ชำระเรียบร้อยแล้ว หากต้องการสั่งอาหารอีกครั้ง กรุณาสแกน QR Code ในวิลล่าใหม่',
+    'session.closedBody': 'พนักงานจบการเข้าพักเรียบร้อยแล้ว หน้านี้ยังเปิดดูบิลย้อนหลังได้ แต่สั่งเพิ่มไม่ได้ — หากต้องการสั่งใหม่ กรุณาสแกน QR Code ในวิลล่า',
     'session.notYoursTitle': 'กรุณาสแกน QR ในวิลล่า',
     'session.notYoursBody': 'ลิงก์นี้ใช้สั่งอาหารได้เฉพาะอุปกรณ์ที่สแกน QR Code ในที่พักเท่านั้น',
     'session.invalidTitle': 'ลิงก์ไม่ถูกต้อง',
@@ -152,6 +152,34 @@ export const STRINGS = {
     'notice.intro': 'กรุณาอ่านก่อนดำเนินการชำระเงิน',
     'notice.ack': 'รับทราบ ดำเนินการต่อ',
     'notice.imageAlt': 'ประกาศรายละเอียดการสั่งอาหารและบริการของที่พัก',
+
+    'order.status.AWAITING_PRICING': 'รอพนักงานแจ้งราคา',
+    'order.status.UNPAID': 'รอชำระเงิน',
+    'order.status.AWAITING_PAYMENT': 'รอตรวจสลิป',
+
+    'pay.title': 'ชำระเงิน',
+    'pay.now': 'ชำระเงิน',
+    'pay.amount': 'ยอดที่ต้องชำระ',
+    'pay.forOrder': 'สำหรับออเดอร์ {id}',
+    'pay.waitingPrice': 'ออเดอร์นี้มีรายการที่ต้องชั่งน้ำหนัก พนักงานกำลังแจ้งราคา แล้วจะชำระเงินได้',
+    'pay.waitingReview': 'ได้รับสลิปแล้ว พนักงานกำลังตรวจสอบ',
+    'pay.rejected': 'สลิปไม่ผ่านการตรวจสอบ',
+    'pay.uploadAgain': 'อัปโหลดสลิปใหม่',
+    'pay.approved': 'ชำระเงินเรียบร้อย ครัวเริ่มทำอาหารแล้ว',
+    'pay.kitchenNote': 'ครัวจะเริ่มทำอาหารหลังพนักงานยืนยันสลิปแล้ว',
+
+    'orders.empty': 'ยังไม่มีออเดอร์',
+    'orders.emptyHint': 'เลือกเมนูที่ต้องการแล้วกดยืนยันการสั่ง',
+    'orders.orderAgain': 'สั่งเพิ่ม',
+    'orders.count': '{n} ออเดอร์',
+
+    'bill.historyTitle': 'บิลทั้งหมด',
+    'bill.paidTotal': 'ชำระแล้วทั้งหมด',
+    'bill.outstanding': 'ยังไม่ได้ชำระ',
+    'bill.stillOpen': 'ยังสั่งเพิ่มได้ เซสชันจะปิดเมื่อพนักงานกดจบการเข้าพัก',
+
+    'cart.confirmOrder': 'ยืนยันการสั่ง',
+    'cart.confirmBody': 'ยืนยันแล้วจะไปหน้าชำระเงิน ครัวจะเริ่มทำหลังพนักงานตรวจสลิปเรียบร้อย',
 
     'lang.label': 'ภาษา',
   },
@@ -268,7 +296,7 @@ export const STRINGS = {
     'geo.denied': 'Location is off. You can still order normally.',
 
     'session.closedTitle': 'This session is closed',
-    'session.closedBody': 'This bill has been paid. To order again, please scan the QR code in your villa.',
+    'session.closedBody': 'Staff have closed this stay. You can still view everything you ordered here, but not add to it — to order again, scan the QR code in your villa.',
     'session.notYoursTitle': 'Please scan the QR in your villa',
     'session.notYoursBody': 'Only the device that scanned the villa QR code can order from this link.',
     'session.invalidTitle': 'Invalid link',
@@ -297,6 +325,34 @@ export const STRINGS = {
     'notice.intro': 'Please read this before paying',
     'notice.ack': 'Understood, continue',
     'notice.imageAlt': 'Villa ordering and service information notice',
+
+    'order.status.AWAITING_PRICING': 'Waiting for price',
+    'order.status.UNPAID': 'Awaiting payment',
+    'order.status.AWAITING_PAYMENT': 'Checking your slip',
+
+    'pay.title': 'Payment',
+    'pay.now': 'Pay now',
+    'pay.amount': 'Amount to pay',
+    'pay.forOrder': 'For order {id}',
+    'pay.waitingPrice': 'This order contains something weighed to order. Staff are setting the price, then you can pay.',
+    'pay.waitingReview': 'We have your slip. A member of staff is checking it now.',
+    'pay.rejected': 'Slip could not be verified',
+    'pay.uploadAgain': 'Upload another slip',
+    'pay.approved': 'Paid — the kitchen has started',
+    'pay.kitchenNote': 'The kitchen starts once staff confirm your transfer.',
+
+    'orders.empty': 'No orders yet',
+    'orders.emptyHint': 'Pick a dish and confirm your order',
+    'orders.orderAgain': 'Order more',
+    'orders.count': '{n} orders',
+
+    'bill.historyTitle': 'All orders',
+    'bill.paidTotal': 'Paid in total',
+    'bill.outstanding': 'Not yet paid',
+    'bill.stillOpen': 'You can keep ordering. Staff close the session when you check out.',
+
+    'cart.confirmOrder': 'Confirm order',
+    'cart.confirmBody': 'You will go to the payment step next. The kitchen starts once staff confirm your transfer.',
 
     'lang.label': 'Language',
   },
@@ -413,7 +469,7 @@ export const STRINGS = {
     'geo.denied': '未开启定位。您仍可正常点餐。',
 
     'session.closedTitle': '本次点餐已结束',
-    'session.closedBody': '账单已结清。如需再次点餐，请重新扫描别墅内的二维码。',
+    'session.closedBody': '工作人员已结束本次入住。此页仍可查看历史账单，但无法继续点餐——如需再次点餐，请扫描别墅内的二维码。',
     'session.notYoursTitle': '请扫描别墅内的二维码',
     'session.notYoursBody': '只有扫描过别墅二维码的设备才能通过此链接点餐。',
     'session.invalidTitle': '链接无效',
@@ -441,6 +497,34 @@ export const STRINGS = {
     'notice.intro': '付款前请先阅读',
     'notice.ack': '已了解，继续',
     'notice.imageAlt': '别墅点餐与服务须知',
+
+    'order.status.AWAITING_PRICING': '等待报价',
+    'order.status.UNPAID': '待付款',
+    'order.status.AWAITING_PAYMENT': '核对付款凭证中',
+
+    'pay.title': '付款',
+    'pay.now': '去付款',
+    'pay.amount': '应付金额',
+    'pay.forOrder': '订单 {id}',
+    'pay.waitingPrice': '此订单含需称重的菜品，工作人员正在报价，之后即可付款。',
+    'pay.waitingReview': '已收到凭证，工作人员正在核对。',
+    'pay.rejected': '凭证未通过核对',
+    'pay.uploadAgain': '重新上传凭证',
+    'pay.approved': '已付款，厨房已开始制作',
+    'pay.kitchenNote': '工作人员确认转账后厨房才会开始制作。',
+
+    'orders.empty': '暂无订单',
+    'orders.emptyHint': '选择菜品后确认下单',
+    'orders.orderAgain': '继续点餐',
+    'orders.count': '{n} 个订单',
+
+    'bill.historyTitle': '全部订单',
+    'bill.paidTotal': '已付合计',
+    'bill.outstanding': '未付款',
+    'bill.stillOpen': '可继续点餐。退房时由工作人员结束本次点餐。',
+
+    'cart.confirmOrder': '确认下单',
+    'cart.confirmBody': '下一步进入付款。工作人员确认转账后厨房才会开始制作。',
 
     'lang.label': '语言',
   },

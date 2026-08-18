@@ -116,18 +116,21 @@ export default function SettingsPage() {
   const sections = [...new Set(SETTINGS.map((s) => s.section))];
 
   return (
-    <div className="max-w-2xl space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold">ตั้งค่าร้าน</h1>
+    <div className="space-y-5">
+      <header className="space-y-1">
+        <h1 className="text-xl font-bold sm:text-2xl">ตั้งค่าร้าน</h1>
         <p className="flex items-start gap-2 text-sm muted">
           <Info className="mt-0.5 size-4 shrink-0" />
           ค่าเหล่านี้เก็บอยู่ในแท็บ Settings ของ Google Sheet — แก้จากที่นี่หรือแก้ในชีตโดยตรงก็ได้
         </p>
       </header>
 
-      {sections.map((section) => (
-        <Card key={section} className="space-y-3">
-          <h2 className="font-semibold">{section}</h2>
+      {/* Column flow rather than a grid: sections have wildly different
+          heights, and a grid would leave a ragged hole under every short one. */}
+      <div className="[column-fill:balance] gap-5 lg:columns-2 2xl:columns-3">
+        {sections.map((section) => (
+        <Card key={section} className="mb-5 inline-block w-full space-y-3 break-inside-avoid align-top">
+          <h2 className="font-bold">{section}</h2>
           {SETTINGS.filter((s) => s.section === section).map((setting) => (
             <SettingInput
               key={setting.key}
@@ -137,7 +140,8 @@ export default function SettingsPage() {
             />
           ))}
         </Card>
-      ))}
+        ))}
+      </div>
 
       {error && (
         <p className="rounded-xl bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">
