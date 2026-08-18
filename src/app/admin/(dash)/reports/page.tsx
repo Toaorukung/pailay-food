@@ -98,7 +98,7 @@ export default function ReportsPage() {
         />
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <Metric label="ยอดขายรวม" value={formatMoney(data.summary.revenue)} />
             <Metric label="จำนวนออเดอร์" value={String(data.summary.orders)} />
             <Metric label="จานที่ขายได้" value={String(data.summary.itemsSold)} />

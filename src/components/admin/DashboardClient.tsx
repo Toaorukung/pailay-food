@@ -22,7 +22,7 @@ export function DashboardClient() {
 
   if (loading && !data) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-24" />
         ))}
@@ -78,7 +78,7 @@ export function DashboardClient() {
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
         <Stat
           icon={<Banknote className="size-5" />}
           label="ยอดขายวันนี้"

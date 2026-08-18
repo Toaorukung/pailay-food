@@ -97,7 +97,7 @@ export default function SessionsPage() {
           {sessions.map((s) => (
             <li key={s.id}>
               <Card className="flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-full sm:basis-0">
                   <p className="font-semibold">{s.villa || s.tableLabel}</p>
                   <p className="text-xs muted">
                     เปิด{' '}
@@ -129,7 +129,7 @@ export default function SessionsPage() {
                   </div>
                 </div>
 
-                <div className="text-right">
+                <div className="flex flex-1 items-baseline gap-2 sm:flex-none sm:flex-col sm:items-end sm:gap-0">
                   <p className="text-xs muted">ยอดสะสม</p>
                   <p className="text-lg font-bold tabular">
                     {formatMoney(s.paidTotal)}

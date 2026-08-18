@@ -20,7 +20,8 @@
     "connect-sheet": "tsx scripts/connect-sheet.ts",
     "test:merge": "node scripts/merge-test.mjs",
     "fix:tables": "node scripts/fix-tables-columns.mjs",
-    "test:slip": "node scripts/slip-test.mjs"
+    "test:slip": "node scripts/slip-test.mjs",
+    "test:responsive": "node scripts/responsive-audit.mjs"
   },
   "dependencies": {
     "@noble/hashes": "^1.7.1",
