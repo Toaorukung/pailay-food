@@ -181,6 +181,9 @@ export const STRINGS = {
     'cart.confirmOrder': 'ยืนยันการสั่ง',
     'cart.confirmBody': 'ยืนยันแล้วจะไปหน้าชำระเงิน ครัวจะเริ่มทำหลังพนักงานตรวจสลิปเรียบร้อย',
 
+    'promo.headline': 'อาหารทะเลสดถึงวิลล่า',
+    'promo.sub': 'สั่งได้ทุกเมนู ส่งตรงถึงห้องพักของคุณ',
+
     'lang.label': 'ภาษา',
   },
 
@@ -354,6 +357,9 @@ export const STRINGS = {
     'cart.confirmOrder': 'Confirm order',
     'cart.confirmBody': 'You will go to the payment step next. The kitchen starts once staff confirm your transfer.',
 
+    'promo.headline': 'Fresh seafood, straight to your villa',
+    'promo.sub': 'Order anything on the menu, we bring it to your door',
+
     'lang.label': 'Language',
   },
 
@@ -525,6 +531,9 @@ export const STRINGS = {
 
     'cart.confirmOrder': '确认下单',
     'cart.confirmBody': '下一步进入付款。工作人员确认转账后厨房才会开始制作。',
+
+    'promo.headline': '新鲜海鲜，直送别墅',
+    'promo.sub': '菜单上的任何菜品，直接送到您的房间',
 
     'lang.label': '语言',
   },

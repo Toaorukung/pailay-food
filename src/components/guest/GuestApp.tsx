@@ -173,9 +173,9 @@ export function GuestApp({
   ];
 
   return (
-    <div className="flex min-h-svh flex-col bg-[var(--canvas)]">
+    <div className="mx-auto flex min-h-svh max-w-[30rem] flex-col bg-[var(--surface)] shadow-[var(--shadow-lg)] sm:min-h-svh">
       <header className="brand-gradient sticky top-0 z-30 text-white shadow-[var(--shadow-md)] safe-top">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex w-full max-w-[30rem] items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[17px] font-bold leading-tight tracking-tight">
               {catalog.settings.shopName}
@@ -220,7 +220,7 @@ export function GuestApp({
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-3">
+      <main className="mx-auto w-full max-w-[30rem] flex-1 px-4 pb-28 pt-3">
         {isClosed && <ClosedBanner />}
 
         {snapshot.session.geoStatus === 'OUTSIDE' && (
@@ -272,12 +272,12 @@ export function GuestApp({
       </main>
 
       {cartCount > 0 && tab === 'menu' && canOrder && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[4.4rem] z-30 px-4 pb-1">
+        <div className="pointer-events-none fixed bottom-[4.4rem] left-1/2 z-30 w-full max-w-[30rem] -translate-x-1/2 px-4 pb-1">
           <button
             type="button"
             onClick={() => setTab('cart')}
             className={cn(
-              'pointer-events-auto mx-auto flex w-full max-w-3xl items-center gap-3',
+              'pointer-events-auto mx-auto flex w-full max-w-[30rem] items-center gap-3',
               'rounded-2xl bg-[var(--brand)] px-4 py-3.5 text-white',
               'shadow-[var(--shadow-brand)] transition-transform',
               'active:scale-[0.985] active:duration-75 animate-rise',
@@ -296,8 +296,8 @@ export function GuestApp({
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] glass safe-bottom">
-        <div className="mx-auto flex w-full max-w-3xl">
+      <nav className="fixed bottom-0 left-1/2 z-30 w-full max-w-[30rem] -translate-x-1/2 border-t border-[var(--line)] glass safe-bottom">
+        <div className="mx-auto flex w-full max-w-[30rem]">
           {tabs.map(({ id, icon: Icon, label, badge }) => (
             <button
               key={id}

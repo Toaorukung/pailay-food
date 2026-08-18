@@ -163,6 +163,24 @@ export function MenuView({
         </div>
       )}
 
+      {!searching && !categoryId && (
+        <div className="brand-gradient relative overflow-hidden rounded-2xl p-4 text-white shadow-[var(--shadow-brand)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] opacity-90">
+            {catalog.settings.shopName}
+          </p>
+          <p className="mt-0.5 text-xl font-bold leading-tight">
+            {t('promo.headline')}
+          </p>
+          <p className="mt-0.5 text-xs opacity-90">{t('promo.sub')}</p>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -bottom-5 -right-3 text-[5.5rem] opacity-25"
+          >
+            {'\u{1F990}'}
+          </span>
+        </div>
+      )}
+
       {!searching && (
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar">
           <CategoryChip
@@ -208,7 +226,7 @@ export function MenuView({
         <div className="space-y-6">
           {grouped.map(({ category, items }) => (
             <section key={category.id} className="space-y-2">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide muted">
+              <h2 className="flex items-center gap-2 text-[15px] font-bold">
                 {category.icon && <span aria-hidden>{category.icon}</span>}
                 {L(category.name)}
               </h2>
@@ -294,39 +312,26 @@ function ItemRow({
             alt=""
             loading="lazy"
             decoding="async"
-            className="size-[4.75rem] shrink-0 rounded-2xl object-cover"
+            className="size-[5.5rem] shrink-0 rounded-2xl object-cover"
           />
         ) : (
           // No photo: a warm tile with the category glyph, so the row keeps its
           // rhythm instead of collapsing into a wall of text.
-          <div className="food-tile flex size-[4.75rem] shrink-0 items-center justify-center rounded-2xl text-[1.75rem]">
+          <div className="food-tile flex size-[5.5rem] shrink-0 items-center justify-center rounded-2xl text-[2rem]">
             <span className="relative">
               {catalog.categories.find((c) => c.id === item.categoryId)?.icon ?? '🍽'}
             </span>
           </div>
         )}
 
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold leading-snug">{L(item.name)}</p>
-            {/* A market-price dish stored at 0 must never render as "฿0". */}
-            <p
-              className={cn(
-                'shrink-0 font-semibold',
-                item.priceOnRequest ? 'text-xs muted' : 'tabular',
-              )}
-            >
-              {item.priceOnRequest
-                ? t('item.priceOnRequest')
-                : formatMoney(item.price, catalog.settings.currency)}
-            </p>
-          </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className="font-semibold leading-snug">{L(item.name)}</p>
 
           {L(item.description) && (
             <p className="line-clamp-2 text-xs muted">{L(item.description)}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             {!item.isAvailable && (
               <Badge tone="neutral">{t('item.unavailable')}</Badge>
             )}
@@ -359,16 +364,33 @@ function ItemRow({
               </span>
             )}
           </div>
-        </div>
 
-        {item.isAvailable && (
-          <span
-            aria-hidden
-            className="mt-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-lg font-bold leading-none text-white shadow-[var(--shadow-brand)]"
-          >
-            +
-          </span>
-        )}
+          {/* Price and the add control share the last line: the two things a
+              guest weighs against each other sit together, not at opposite
+              corners of the card. */}
+          <div className="mt-auto flex items-end justify-between gap-2 pt-1">
+            {/* A market-price dish stored at 0 must never render as "฿0". */}
+            <p
+              className={cn(
+                'font-bold',
+                item.priceOnRequest ? 'text-xs muted' : 'text-[17px] tabular',
+              )}
+            >
+              {item.priceOnRequest
+                ? t('item.priceOnRequest')
+                : formatMoney(item.price, catalog.settings.currency)}
+            </p>
+
+            {item.isAvailable && (
+              <span
+                aria-hidden
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-xl font-bold leading-none text-white shadow-[var(--shadow-brand)]"
+              >
+                +
+              </span>
+            )}
+          </div>
+        </div>
       </button>
     </li>
   );

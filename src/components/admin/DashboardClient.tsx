@@ -291,31 +291,36 @@ function Stat({
   label: string;
   value: string;
   href?: string;
-  tone?: 'neutral' | 'warning' | 'danger';
+  tone?: 'neutral' | 'warning' | 'danger' | 'success';
 }) {
-  const toneClass =
-    tone === 'danger'
-      ? 'text-[var(--danger)]'
-      : tone === 'warning'
-        ? 'text-[var(--warning)]'
-        : '';
+  const chip = {
+    neutral: 'bg-[var(--surface-sunken)] text-[var(--text-muted)]',
+    warning: 'bg-[var(--warning-soft)] text-[var(--warning)]',
+    danger: 'bg-[var(--danger-soft)] text-[var(--danger)]',
+    success: 'bg-[var(--success-soft)] text-[var(--success)]',
+  }[tone];
 
   const body = (
-    <Card className="flex items-center gap-3">
-      <span className={`rounded-xl bg-[var(--surface-sunken)] p-2.5 ${toneClass}`}>
-        {icon}
-      </span>
-      <span>
-        <span className="block text-xs muted">{label}</span>
-        <span className={`block text-xl font-semibold tabular ${toneClass}`}>
+    <Card className="flex items-start justify-between gap-3">
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-medium muted">{label}</span>
+        <span className="mt-1 block text-2xl font-bold tracking-tight tabular">
           {value}
         </span>
+      </span>
+      <span
+        className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${chip}`}
+      >
+        {icon}
       </span>
     </Card>
   );
 
   return href ? (
-    <Link href={href} className="block transition-transform hover:-translate-y-0.5">
+    <Link
+      href={href}
+      className="block transition-transform hover:-translate-y-0.5"
+    >
       {body}
     </Link>
   ) : (
