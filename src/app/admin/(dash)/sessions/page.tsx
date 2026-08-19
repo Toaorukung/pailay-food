@@ -21,6 +21,7 @@ interface SessionRow {
   status: string;
   openedAt: string;
   guestName: string;
+  guestPhone: string;
   allergyProfile: string[];
   geoStatus: string;
   distanceM: number | null;
@@ -109,6 +110,14 @@ export default function SessionsPage() {
                     })}
                     {s.guestName ? ` · ${s.guestName}` : ''}
                   </p>
+                  {s.guestPhone && (
+                    <a
+                      href={`tel:${s.guestPhone.replace(/[^0-9+]/g, '')}`}
+                      className="text-xs font-medium text-[var(--brand)]"
+                    >
+                      {s.guestPhone}
+                    </a>
+                  )}
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     
                     {s.allergyProfile.length > 0 && (

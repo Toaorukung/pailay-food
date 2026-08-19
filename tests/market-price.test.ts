@@ -73,6 +73,8 @@ const settings: PublicSettings = {
   promptPayName: '',
   minOrderAmount: 0,
   contactPhone: '',
+  welcomeEnabled: false,
+  welcomeImage: '',
   serviceNoticeEnabled: false,
   serviceNoticeImage: '',
   serviceNotice: loc(''),

@@ -24,9 +24,16 @@ import { CartView } from './CartView';
 import { OrdersView } from './OrdersView';
 import { BillView } from './BillView';
 import { AllergyDialog } from './AllergyDialog';
+import { WelcomeFlow, type WelcomeStep } from './WelcomeFlow';
 import { ClosedBanner } from './ClosedBanner';
 
 type Tab = 'menu' | 'cart' | 'orders' | 'bill';
+
+/**
+ * What a guest is walked through the first time they open the app: the
+ * villa's notice, then who they are, then what they cannot eat.
+ */
+type FlowStep = WelcomeStep | 'allergy';
 
 const POLL_IDLE_MS = 20_000;
 const POLL_ACTIVE_MS = 5_000;
@@ -43,9 +50,7 @@ export function GuestApp({
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [tab, setTab] = useState<Tab>('menu');
   const [allergyOpen, setAllergyOpen] = useState(false);
-  const [askedAllergies, setAskedAllergies] = useState(
-    initialSnapshot.session.allergyProfile.length > 0,
-  );
+  const [flowStep, setFlowStep] = useState<FlowStep | null>(null);
 
   const sessionId = snapshot.session.id;
   const canOrder = snapshot.session.status === 'OPEN';
@@ -139,13 +144,35 @@ export function GuestApp({
     );
   }, [canOrder, refresh, sessionId, snapshot.session.geoStatus]);
 
-  // ── First-run allergy prompt ──────────────────────────────
+  // ── First-run flow ────────────────────────────────────────
+  // Steps the villa has nothing to show for are dropped rather than rendered
+  // empty, so the step counter always matches what the guest actually sees.
+  const flowSteps = useMemo<FlowStep[]>(() => {
+    const steps: FlowStep[] = [];
+    if (catalog.settings.welcomeEnabled && catalog.settings.welcomeImage) {
+      steps.push('notice');
+    }
+    steps.push('details');
+    if (catalog.allergens.some((a) => a.isActive)) steps.push('allergy');
+    return steps;
+  }, [catalog.allergens, catalog.settings.welcomeEnabled, catalog.settings.welcomeImage]);
+
+  // The phone number is what marks a session as introduced: it is the one
+  // answer the flow insists on, so a session holding one has been through it.
+  const introduced = Boolean(snapshot.session.guestPhone);
+  const flowStarted = useRef(false);
+
   useEffect(() => {
-    if (askedAllergies || !canOrder) return;
-    if (catalog.allergens.filter((a) => a.isActive).length === 0) return;
-    const timer = setTimeout(() => setAllergyOpen(true), 500);
+    if (flowStarted.current || !canOrder || introduced) return;
+    flowStarted.current = true;
+    // A beat after the menu paints, so the guest sees what they scanned into
+    // rather than a dialog over a blank screen.
+    const timer = setTimeout(() => setFlowStep(flowSteps[0] ?? null), 500);
     return () => clearTimeout(timer);
-  }, [askedAllergies, canOrder, catalog.allergens]);
+  }, [canOrder, introduced, flowSteps]);
+
+  const inAllergyStep = flowStep === 'allergy';
+  const stepNumber = flowStep ? flowSteps.indexOf(flowStep) + 1 : 1;
 
   const cartCount = snapshot.cart.lines.reduce((n, l) => n + l.qty, 0);
   const activeOrders = snapshot.orders.filter(
@@ -331,17 +358,39 @@ export function GuestApp({
         </div>
       </nav>
 
+      <WelcomeFlow
+        step={inAllergyStep ? null : flowStep}
+        onStepChange={setFlowStep}
+        onDetailsSaved={() =>
+          setFlowStep(flowSteps.includes('allergy') ? 'allergy' : null)
+        }
+        catalog={catalog}
+        sessionId={sessionId}
+        guestName={snapshot.session.guestName}
+        guestPhone={snapshot.session.guestPhone}
+        onSaved={refresh}
+        stepNumber={stepNumber}
+        totalSteps={flowSteps.length}
+      />
+
       <AllergyDialog
-        open={allergyOpen}
+        open={allergyOpen || inAllergyStep}
         onOpenChange={(open) => {
           setAllergyOpen(open);
-          if (!open) setAskedAllergies(true);
+          if (!open && inAllergyStep) setFlowStep(null);
         }}
         catalog={catalog}
         sessionId={sessionId}
         current={snapshot.session.allergyProfile}
         guestName={snapshot.session.guestName}
+        guestPhone={snapshot.session.guestPhone}
         onSaved={refresh}
+        showIdentity={!inAllergyStep}
+        stepLabel={
+          inAllergyStep
+            ? t('welcome.step', { n: stepNumber, total: flowSteps.length })
+            : undefined
+        }
       />
     </div>
   );

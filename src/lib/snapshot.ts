@@ -45,6 +45,7 @@ export interface PublicSession {
   villa: string;
   status: GuestSession['status'];
   guestName: string;
+  guestPhone: string;
   allergyProfile: string[];
   geoStatus: GuestSession['geoStatus'];
   distanceM: number | null;
@@ -70,6 +71,7 @@ export function publicSession(s: GuestSession): PublicSession {
     villa: s.villa,
     status: s.status,
     guestName: s.guestName,
+    guestPhone: s.guestPhone,
     allergyProfile: s.allergyProfile,
     geoStatus: s.geoStatus,
     distanceM: s.distanceM,

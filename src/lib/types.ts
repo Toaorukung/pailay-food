@@ -101,6 +101,12 @@ export interface PublicSettings {
   minOrderAmount: number;
   /** Shown on dishes priced by weight, so the guest can ring the kitchen. */
   contactPhone: string;
+  /**
+   * The same artwork shown as a welcome popup the first time a guest opens the
+   * app, before they are asked for their name, phone and allergies.
+   */
+  welcomeEnabled: boolean;
+  welcomeImage: string;
   /** The villa's service rules, shown once immediately before checkout. */
   serviceNoticeEnabled: boolean;
   serviceNoticeImage: string;
@@ -142,6 +148,8 @@ export interface GuestSession {
   openedAt: string;
   closedAt: string | null;
   guestName: string;
+  /** Asked for on first open, so staff can ring the villa about an order. */
+  guestPhone: string;
   /** Allergen ids the guest declared. */
   allergyProfile: string[];
   geoStatus: GeoStatus;

@@ -56,7 +56,7 @@ export const STRINGS = {
     'allergy.confirmBody': 'เมนู "{name}" มีส่วนผสมที่คุณแจ้งว่าแพ้: {allergens}',
     'allergy.ack': 'ฉันรับทราบและต้องการสั่งรายการนี้',
     'allergy.mustAck': 'กรุณาติ๊กช่องรับทราบก่อนสั่ง',
-    'allergy.guestName': 'ชื่อผู้เข้าพัก (ไม่บังคับ)',
+    'allergy.editIntro': 'แก้ไขได้ตลอดเวลา ระบบจะแจ้งครัวตามข้อมูลล่าสุด',
     'allergy.profileSummary': 'แพ้: {list}',
 
     'item.add': 'เพิ่มลงตะกร้า',
@@ -148,6 +148,23 @@ export const STRINGS = {
       'มีรายการที่ต้องชั่งน้ำหนักก่อน ({names}) พนักงานกำลังดำเนินการ เมื่อแจ้งราคาครบแล้วจะเช็คบิลได้ทันที',
     'bill.partialTotal': 'ยอดนี้ยังไม่รวมรายการที่รอแจ้งราคา',
 
+    'welcome.title': 'ยินดีต้อนรับ',
+    'welcome.intro': 'กรุณาอ่านรายละเอียดการสั่งอาหารและบริการก่อนเริ่มสั่ง',
+    'welcome.imageAlt': 'ประกาศรายละเอียดการสั่งอาหารและบริการของที่พัก',
+    'welcome.next': 'ถัดไป',
+    'welcome.step': 'ขั้นตอนที่ {n} จาก {total}',
+
+    'guest.title': 'ข้อมูลผู้สั่งอาหาร',
+    'guest.intro': 'กรอกชื่อและเบอร์โทร เพื่อให้ทีมงานติดต่อกลับได้ตอนจัดส่ง',
+    'guest.name': 'ชื่อผู้สั่ง',
+    'guest.namePlaceholder': 'เช่น คุณสมชาย',
+    'guest.phone': 'เบอร์โทรศัพท์',
+    'guest.phonePlaceholder': '08X-XXX-XXXX',
+    'guest.nameRequired': 'กรุณากรอกชื่อ',
+    'guest.phoneRequired': 'กรุณากรอกเบอร์โทรศัพท์',
+    'guest.phoneInvalid': 'เบอร์โทรศัพท์ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง',
+    'guest.next': 'ถัดไป',
+
     'notice.title': 'เงื่อนไขการสั่งอาหารและบริการ',
     'notice.intro': 'กรุณาอ่านก่อนดำเนินการชำระเงิน',
     'notice.ack': 'รับทราบ ดำเนินการต่อ',
@@ -232,7 +249,7 @@ export const STRINGS = {
     'allergy.confirmBody': '"{name}" contains: {allergens}',
     'allergy.ack': 'I understand and want to order this',
     'allergy.mustAck': 'Please confirm you understand before ordering',
-    'allergy.guestName': 'Guest name (optional)',
+    'allergy.editIntro': 'You can change this at any time — the kitchen always sees the latest.',
     'allergy.profileSummary': 'Allergic to: {list}',
 
     'item.add': 'Add to cart',
@@ -324,6 +341,23 @@ export const STRINGS = {
       'Some items are weighed first ({names}). Staff are on it — checkout opens as soon as every price is in.',
     'bill.partialTotal': 'This total does not yet include items awaiting a price',
 
+    'welcome.title': 'Welcome',
+    'welcome.intro': 'Please read how ordering and service work here before you start.',
+    'welcome.imageAlt': 'Villa ordering and service information notice',
+    'welcome.next': 'Next',
+    'welcome.step': 'Step {n} of {total}',
+
+    'guest.title': 'Your details',
+    'guest.intro': 'Your name and phone number, so our team can reach you about the delivery.',
+    'guest.name': 'Name',
+    'guest.namePlaceholder': 'e.g. John Smith',
+    'guest.phone': 'Phone number',
+    'guest.phonePlaceholder': '08X-XXX-XXXX',
+    'guest.nameRequired': 'Please enter your name',
+    'guest.phoneRequired': 'Please enter your phone number',
+    'guest.phoneInvalid': 'That phone number does not look right — please check it',
+    'guest.next': 'Next',
+
     'notice.title': 'Ordering and service information',
     'notice.intro': 'Please read this before paying',
     'notice.ack': 'Understood, continue',
@@ -408,7 +442,7 @@ export const STRINGS = {
     'allergy.confirmBody': '「{name}」含有：{allergens}',
     'allergy.ack': '我已知悉，仍要点这道菜',
     'allergy.mustAck': '请先确认您已知悉',
-    'allergy.guestName': '客人姓名（选填）',
+    'allergy.editIntro': '可随时修改，厨房以最新填写的信息为准。',
     'allergy.profileSummary': '过敏：{list}',
 
     'item.add': '加入购物车',
@@ -498,6 +532,23 @@ export const STRINGS = {
     'bill.awaitingBody':
       '部分菜品需先称重（{names}），工作人员正在处理。全部价格确定后即可结账。',
     'bill.partialTotal': '此金额尚未包含待报价的菜品',
+
+    'welcome.title': '欢迎',
+    'welcome.intro': '开始点餐前，请先阅读点餐与服务须知。',
+    'welcome.imageAlt': '别墅点餐与服务须知',
+    'welcome.next': '下一步',
+    'welcome.step': '第 {n} 步，共 {total} 步',
+
+    'guest.title': '您的信息',
+    'guest.intro': '请填写姓名与电话，方便工作人员在配送时与您联系。',
+    'guest.name': '姓名',
+    'guest.namePlaceholder': '例如：李明',
+    'guest.phone': '电话号码',
+    'guest.phonePlaceholder': '08X-XXX-XXXX',
+    'guest.nameRequired': '请填写姓名',
+    'guest.phoneRequired': '请填写电话号码',
+    'guest.phoneInvalid': '电话号码有误，请再检查一次',
+    'guest.next': '下一步',
 
     'notice.title': '点餐与服务须知',
     'notice.intro': '付款前请先阅读',

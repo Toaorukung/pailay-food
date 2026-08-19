@@ -34,12 +34,24 @@ test.describe('guest ordering', () => {
     await expect(page).toHaveURL(/\/s\/[A-Za-z0-9_-]{20,}/);
     const sessionUrl = page.url();
 
-    // Allergy prompt opens on first visit.
-    const allergyDialog = page.getByRole('dialog');
-    await expect(allergyDialog).toBeVisible();
+    // The opening flow: the villa's notice, then who the guest is, then what
+    // they cannot eat.
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    // The notice step only exists when the villa has uploaded the artwork.
+    const notice = dialog.getByRole('img').first();
+    if (await notice.isVisible().catch(() => false)) {
+      await page.getByRole('button', { name: /ถัดไป|Next/ }).click();
+    }
+
+    await page.getByLabel(/ชื่อผู้สั่ง|^Name$/).fill('ผู้ทดสอบ');
+    await page.getByLabel(/เบอร์โทรศัพท์|Phone number/).fill('081-234-5678');
+    await page.getByRole('button', { name: /ถัดไป|Next/ }).click();
+
     await page.getByRole('button', { name: /กุ้ง หอย ปู|Shellfish/ }).first().click();
     await page.getByRole('button', { name: /บันทึกและดูเมนู|Save and view/ }).click();
-    await expect(allergyDialog).toBeHidden();
+    await expect(dialog).toBeHidden();
 
     // A dish containing a declared allergen carries the warning.
     await expect(page.getByText(/เมนูนี้มีส่วนผสมที่คุณแจ้งว่าแพ้/).first()).toBeVisible();

@@ -107,6 +107,8 @@ const settings: PublicSettings = {
     SETTINGS_DEFAULTS.payment_note_en,
     SETTINGS_DEFAULTS.payment_note_zh,
   ),
+  welcomeEnabled: true,
+  welcomeImage: '/notice/welcome.jpg',
   serviceNoticeEnabled: true,
   serviceNoticeImage: '/notice/service.jpg',
   serviceNotice: loc(

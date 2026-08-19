@@ -61,6 +61,9 @@ export const HEADERS: Record<TabName, string[]> = {
     'session_id', 'table_id', 'opened_at', 'closed_at', 'status',
     'guest_name', 'allergy_profile', 'geo_status', 'distance_m', 'locale',
     'closed_by',
+    // Appended, not slotted next to guest_name: a column inserted mid-list
+    // would shift every value in every existing row of a live sheet.
+    'guest_phone',
   ],
   Orders: [
     'order_id', 'session_id', 'table_id', 'created_at', 'status',

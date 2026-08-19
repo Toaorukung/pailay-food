@@ -59,9 +59,31 @@ export const geoReportSchema = z.object({
   accuracy: z.number().min(0).max(100_000).default(0),
 });
 
+/**
+ * A phone number as a guest types it: digits with the usual separators, and
+ * deliberately loose about the shape so a foreign number still passes. The
+ * digit count is the real check — it is what stops a stray character being
+ * stored as a number staff would later try to ring.
+ */
+export const guestPhoneSchema = z
+  .string()
+  .max(40)
+  .transform((s) => s.trim())
+  .refine(
+    (s) => s === '' || (/^[0-9+\-() ]+$/.test(s) && s.replace(/\D/g, '').length >= 8),
+    { message: 'เบอร์โทรศัพท์ไม่ถูกต้อง' },
+  );
+
+/**
+ * Every field is optional and nothing is defaulted, so each caller writes only
+ * what it collected. The onboarding steps send name and phone before the guest
+ * has seen the allergen list; sending an absent field as an empty string here
+ * would wipe an answer the guest already gave.
+ */
 export const allergyProfileSchema = z.object({
-  allergens: z.array(z.string().min(1).max(64)).max(40),
-  guestName: z.string().max(80).optional().default(''),
+  allergens: z.array(z.string().min(1).max(64)).max(40).optional(),
+  guestName: z.string().max(80).optional(),
+  guestPhone: guestPhoneSchema.optional(),
 });
 
 export const placeOrderSchema = z.object({

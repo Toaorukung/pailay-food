@@ -46,6 +46,8 @@ export const SETTINGS_DEFAULTS: Record<string, string> = {
   contact_phone: '',
   // Defaults are deliberately empty rather than invented: an unconfigured
   // notice shows nothing instead of showing rules the villa never agreed to.
+  welcome_enabled: 'TRUE',
+  welcome_image: '',
   service_notice_enabled: 'TRUE',
   service_notice_image: '',
   service_notice_th: '',
@@ -86,6 +88,8 @@ function publicSettings(map: Record<string, string>): PublicSettings {
       zh: map.payment_note_zh,
     },
     contactPhone: map.contact_phone ?? '',
+    welcomeEnabled: bool(map.welcome_enabled, true),
+    welcomeImage: map.welcome_image ?? '',
     serviceNoticeEnabled: bool(map.service_notice_enabled, true),
     serviceNoticeImage: map.service_notice_image ?? '',
     serviceNotice: {

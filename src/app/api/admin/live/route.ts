@@ -20,6 +20,7 @@ export interface AdminLive {
     status: string;
     openedAt: string;
     guestName: string;
+    guestPhone: string;
     allergyProfile: string[];
     geoStatus: string;
     distanceM: number | null;
@@ -78,6 +79,7 @@ export const GET = handler(async (req: Request) => {
       status: s.status,
       openedAt: s.openedAt,
       guestName: s.guestName,
+      guestPhone: s.guestPhone ?? '',
       allergyProfile: s.allergyProfile,
       geoStatus: s.geoStatus,
       distanceM: s.distanceM,

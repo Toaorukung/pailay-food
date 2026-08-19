@@ -293,6 +293,11 @@ function buildSeeds(): Record<string, string[][]> {
       ['payment_note_en', 'Scan the QR below to pay, then upload your slip to confirm.', ''],
       ['payment_note_zh', '扫描下方二维码付款，然后上传付款凭证以确认。', ''],
 
+      // Shown the moment the guest opens the app, before they are asked for
+      // their name, phone and allergies.
+      ['welcome_enabled', 'TRUE', 'TRUE = แสดงป๊อปอัปต้อนรับตอนเปิดแอปครั้งแรก'],
+      ['welcome_image', '/notice/welcome.jpg', 'รูปป๊อปอัปต้อนรับ อัปโหลดใหม่แล้ววางลิงก์ที่นี่ได้'],
+
       // Shown to the guest immediately before checkout: the villa's own
       // artwork, plus the same rules as selectable text underneath.
       ['service_notice_enabled', 'TRUE', 'TRUE = แสดงหน้าเงื่อนไขบริการก่อนชำระเงิน'],

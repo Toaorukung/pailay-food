@@ -12,6 +12,13 @@ export interface PaymentContext {
 }
 import type { MenuCatalog, Order } from '@/lib/types';
 
+/** What the session holds about the guest themselves. */
+interface GuestProfile {
+  allergyProfile: string[];
+  guestName: string;
+  guestPhone: string;
+}
+
 /**
  * Thin fetch layer for the guest app.
  *
@@ -82,12 +89,26 @@ export const guestApi = {
 
   saveAllergies: (
     sessionId: string,
-    body: { allergens: string[]; guestName: string },
+    body: { allergens: string[]; guestName?: string; guestPhone?: string },
   ) =>
-    call<{ allergyProfile: string[]; guestName: string }>(
-      `/api/s/${sessionId}/allergy`,
-      { method: 'POST', body: JSON.stringify(body) },
-    ),
+    call<GuestProfile>(`/api/s/${sessionId}/allergy`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  /**
+   * Name and phone on their own, from the step that asks for them before the
+   * guest has seen the allergen list. Allergies are deliberately not sent, so
+   * this cannot clear a profile saved earlier in the stay.
+   */
+  saveGuest: (
+    sessionId: string,
+    body: { guestName: string; guestPhone: string },
+  ) =>
+    call<GuestProfile>(`/api/s/${sessionId}/allergy`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   addToCart: (
     sessionId: string,

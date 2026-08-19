@@ -144,6 +144,14 @@ export function DashboardClient() {
                       })}
                       {s.guestName ? ` · ${s.guestName}` : ''}
                     </p>
+                    {s.guestPhone && (
+                      <a
+                        href={`tel:${s.guestPhone.replace(/[^0-9+]/g, '')}`}
+                        className="text-xs font-medium text-[var(--brand)]"
+                      >
+                        {s.guestPhone}
+                      </a>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-1">
                     {s.allergyProfile.length > 0 && (

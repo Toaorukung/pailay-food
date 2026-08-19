@@ -31,13 +31,8 @@ export function ServiceNotice({
   catalog: MenuCatalog;
   busy?: boolean;
 }) {
-  const { t, L } = useI18n();
-  const { serviceNoticeImage, contactPhone } = catalog.settings;
-
-  const rules = L(catalog.settings.serviceNotice)
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const { t } = useI18n();
+  const { serviceNoticeImage } = catalog.settings;
 
   return (
     <Dialog
@@ -56,43 +51,74 @@ export function ServiceNotice({
         </>
       }
     >
-      <div className="space-y-4">
-        {serviceNoticeImage && (
-          // Tall poster on a small screen: let it scroll rather than shrinking
-          // the text to unreadable.
-          <div className="max-h-[45svh] overflow-y-auto rounded-xl border border-[var(--line)]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={serviceNoticeImage}
-              alt={t('notice.imageAlt')}
-              className="w-full bg-white"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
-        )}
-
-        {rules.length > 0 && (
-          <ul className="space-y-2">
-            {rules.map((rule, i) => (
-              <li key={i} className="flex gap-2.5 text-sm">
-                <Info className="mt-0.5 size-4 shrink-0 text-brand-600" />
-                <span>{rule}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {contactPhone && (
-          <a
-            href={`tel:${contactPhone.replace(/[^0-9+]/g, '')}`}
-            className="flex items-center justify-center gap-2 rounded-xl bg-[var(--surface-sunken)] p-3 text-sm font-medium"
-          >
-            <Phone className="size-4" />
-            {contactPhone}
-          </a>
-        )}
-      </div>
+      <NoticeContent
+        catalog={catalog}
+        image={serviceNoticeImage}
+        imageAlt={t('notice.imageAlt')}
+      />
     </Dialog>
+  );
+}
+
+/**
+ * The artwork, the rules as text and the villa's phone number — the same body
+ * whether it is shown as a welcome on the way in or as the rules on the way to
+ * checkout. Only the image differs between the two.
+ */
+export function NoticeContent({
+  catalog,
+  image,
+  imageAlt,
+}: {
+  catalog: MenuCatalog;
+  image: string;
+  imageAlt: string;
+}) {
+  const { L } = useI18n();
+  const { contactPhone } = catalog.settings;
+
+  const rules = L(catalog.settings.serviceNotice)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="space-y-4">
+      {image && (
+        // Tall poster on a small screen: let it scroll rather than shrinking
+        // the text to unreadable.
+        <div className="max-h-[45svh] overflow-y-auto rounded-xl border border-[var(--line)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt={imageAlt}
+            className="w-full bg-white"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      )}
+
+      {rules.length > 0 && (
+        <ul className="space-y-2">
+          {rules.map((rule, i) => (
+            <li key={i} className="flex gap-2.5 text-sm">
+              <Info className="mt-0.5 size-4 shrink-0 text-brand-600" />
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {contactPhone && (
+        <a
+          href={`tel:${contactPhone.replace(/[^0-9+]/g, '')}`}
+          className="flex items-center justify-center gap-2 rounded-xl bg-[var(--surface-sunken)] p-3 text-sm font-medium"
+        >
+          <Phone className="size-4" />
+          {contactPhone}
+        </a>
+      )}
+    </div>
   );
 }
