@@ -47,7 +47,11 @@ export const SETTINGS_DEFAULTS: Record<string, string> = {
   // Defaults are deliberately empty rather than invented: an unconfigured
   // notice shows nothing instead of showing rules the villa never agreed to.
   welcome_enabled: 'TRUE',
-  welcome_image: '',
+  // Unlike the service notice, this artwork ships with the app, so the welcome
+  // step works on a sheet that has never heard of the key. A villa that wants
+  // its own picture overwrites the value; one that wants no welcome at all
+  // sets welcome_enabled to FALSE.
+  welcome_image: '/notice/welcome.jpg',
   service_notice_enabled: 'TRUE',
   service_notice_image: '',
   service_notice_th: '',

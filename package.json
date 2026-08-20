@@ -22,7 +22,8 @@
     "fix:tables": "node scripts/fix-tables-columns.mjs",
     "test:slip": "node scripts/slip-test.mjs",
     "test:responsive": "node scripts/responsive-audit.mjs",
-    "migrate:redis": "node scripts/migrate-redis.mjs"
+    "migrate:redis": "node scripts/migrate-redis.mjs",
+    "bust:menu": "tsx scripts/bust-menu.ts"
   },
   "dependencies": {
     "@noble/hashes": "^1.7.1",
