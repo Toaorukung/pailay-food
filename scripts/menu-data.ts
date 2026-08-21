@@ -419,9 +419,9 @@ export const ITEMS: SeedItem[] = [
   {
     id: 'm-riverprawn', cat: 'c-shrimp', order: 10,
     th: 'กุ้งแม่น้ำ', en: 'River prawn', zh: '大头虾',
-    descTh: 'จานละ 5 ตัว หรือสั่งเป็นกิโล กรุณาแจ้งล่วงหน้า · ชั่งน้ำหนักก่อนปรุง',
-    descEn: 'Five per plate, or by the kilo with advance notice. Sold by weight.',
-    descZh: '每盘五只，或按公斤预订。按重量计价。',
+    descTh: 'จานละครึ่งกิโล หรือสั่งเป็นกิโล กรุณาแจ้งล่วงหน้า · ชั่งน้ำหนักก่อนปรุง',
+    descEn: 'Half a kilo per plate, or by the kilo with advance notice. Sold by weight.',
+    descZh: '每盘半公斤，或按公斤预订。按重量计价。',
     ingTh: 'กุ้งแม่น้ำสด, เกลือ, น้ำจิ้มซีฟู้ด', ingEn: 'fresh river prawn, salt, seafood sauce', ingZh: '鲜大头虾、盐、海鲜酱',
     price: 0, onRequest: true,
     allergens: [CRUST], may: [MOLL, FISH],
