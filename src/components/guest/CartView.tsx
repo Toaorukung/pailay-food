@@ -258,7 +258,14 @@ export function CartView({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={t('cart.confirmOrder')}
-        description={t('cart.confirmBody')}
+        description={
+          <>
+            {t('cart.confirmBody')}
+            {/* The villa asked for the delivery wait to land here, on the last
+                screen before the guest commits, not only in the notice popup. */}
+            <span className="mt-2 block font-medium">{t('cart.waitNotice')}</span>
+          </>
+        }
         footer={
           <>
             <Button variant="secondary" full onClick={() => setConfirmOpen(false)}>
