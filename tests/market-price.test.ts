@@ -25,6 +25,10 @@ const base = {
   isVegetarian: false,
   isAvailable: true,
   isAlcohol: false,
+  minQty: 0,
+  orderFrom: '',
+  orderUntil: '',
+  leadHours: 0,
   sortOrder: 1,
 };
 
@@ -72,6 +76,8 @@ const settings: PublicSettings = {
   paymentNote: loc(''),
   promptPayName: '',
   minOrderAmount: 0,
+  orderOpen: '',
+  orderCutoff: '',
   contactPhone: '',
   welcomeEnabled: false,
   welcomeImage: '',

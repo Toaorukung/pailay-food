@@ -80,6 +80,10 @@ const items: MenuItem[] = ITEMS.map((m) => ({
   sortOrder: m.order ?? 100,
   priceOnRequest: m.onRequest ?? false,
   isAlcohol: m.alcohol ?? false,
+  minQty: m.minQty ?? 0,
+  orderFrom: m.orderFrom ?? '',
+  orderUntil: m.orderUntil ?? '',
+  leadHours: m.leadHours ?? 0,
   optionGroups: groups(m),
 })).sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -95,6 +99,9 @@ const settings: PublicSettings = {
   vatPercent: 0,
   vatIncluded: true,
   minOrderAmount: 0,
+  // Kitchen takes orders 10:00-21:00; the last-order cutoff is the hard one.
+  orderOpen: '10:00',
+  orderCutoff: '21:00',
   promptPayName: 'ไปเล วิลล่า',
   contactPhone: '095-151-9501',
   allergyDisclaimer: loc(

@@ -3,6 +3,15 @@ import { orderId as newOrderId, paymentId as newPaymentId } from './ids';
 import { computeTotals } from './pricing';
 import { round2 } from './money';
 import { clearCart, revalidateCart } from './cart';
+import {
+  bangkokMinutes,
+  orderWindowState,
+  windowMessageTH,
+  itemTimeState,
+  itemStateMessageTH,
+  minQtyOf,
+  minQtyMessageTH,
+} from './availability';
 import { persist } from './sheets/queue';
 import { TABS } from './sheets/schema';
 import type {
@@ -86,6 +95,34 @@ export async function placeOrder(
       error: 'รายการในตะกร้าหมดทั้งหมด กรุณาเลือกใหม่',
       removed: removed.map((l) => ({ name: l.name.th || l.name.en })),
     };
+  }
+
+  // Time-of-day and quantity rules, enforced here where they cannot be
+  // bypassed. The guest UI shows the same limits, but the page is convenience;
+  // a hand-crafted request past the cutoff is refused right here.
+  const nowMin = bangkokMinutes();
+  const window = orderWindowState(catalog.settings, nowMin);
+  if (!window.open) {
+    await kv().del(idemKey).catch(() => {});
+    return { ok: false, error: windowMessageTH(window) };
+  }
+
+  for (const line of lines) {
+    const item = catalog.items.find((i) => i.id === line.menuId);
+    if (!item) continue;
+    const name = line.name.th || line.name.en;
+
+    const timeState = itemTimeState(item, catalog.settings, nowMin);
+    if (!timeState.orderable) {
+      await kv().del(idemKey).catch(() => {});
+      return { ok: false, error: itemStateMessageTH(name, timeState) };
+    }
+
+    const min = minQtyOf(item);
+    if (item.minQty > 0 && line.qty < min) {
+      await kv().del(idemKey).catch(() => {});
+      return { ok: false, error: minQtyMessageTH(name, min) };
+    }
   }
 
   const totals = computeTotals(lines, catalog.settings);

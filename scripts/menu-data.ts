@@ -54,6 +54,11 @@ export interface SeedItem {
   veg?: boolean;
   groups?: SeedGroup[];
   order?: number;
+  /** Ordering rules — see MenuItem. Blank/0 means no rule. */
+  minQty?: number;
+  orderFrom?: string;
+  orderUntil?: string;
+  leadHours?: number;
 }
 
 // ── Categories ──────────────────────────────────────────────

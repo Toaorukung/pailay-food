@@ -5,9 +5,11 @@ import { Minus, Plus, ShoppingBasket, Trash2, StickyNote } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 import { Button, EmptyState, Dialog } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
+import { itemTimeState, minQtyOf } from '@/lib/availability';
 import type { MenuCatalog } from '@/lib/types';
 import type { SessionSnapshot } from '@/lib/snapshot';
 import { guestApi } from './api';
+import { windowText, itemTimeText } from './availabilityText';
 
 export function CartView({
   catalog,
@@ -93,6 +95,26 @@ export function CartView({
   const belowMinimum =
     catalog.settings.minOrderAmount > 0 &&
     cartTotals.subtotal < catalog.settings.minOrderAmount;
+
+  // Time and quantity rules, mirrored from the server so the guest is not sent
+  // to the payment step only to be refused. The villa-wide window is one
+  // message; each offending line adds its own.
+  const windowMsg = windowText(snapshot.orderWindow, t);
+  const lineIssues: string[] = [];
+  for (const line of cart.lines) {
+    const item = catalog.items.find((i) => i.id === line.menuId);
+    if (!item) continue;
+    const state = itemTimeState(item, catalog.settings, snapshot.nowMinutes);
+    if (!state.orderable) {
+      lineIssues.push(`${L(line.name)} — ${itemTimeText(state, t)}`);
+    }
+    const min = minQtyOf(item);
+    if (item.minQty > 0 && line.qty < min) {
+      lineIssues.push(`${L(line.name)} — ${t('avail.minQty', { n: min })}`);
+    }
+  }
+  const orderBlocked =
+    belowMinimum || Boolean(windowMsg) || lineIssues.length > 0;
 
   return (
     <div className="space-y-3">
@@ -206,12 +228,26 @@ export function CartView({
         </p>
       )}
 
+      {windowMsg && (
+        <p className="rounded-xl bg-[var(--warning-soft)] p-3 text-sm font-medium text-[var(--warning)]">
+          {windowMsg}
+        </p>
+      )}
+
+      {lineIssues.length > 0 && (
+        <ul className="space-y-1 rounded-xl bg-[var(--warning-soft)] p-3 text-sm text-[var(--warning)]">
+          {lineIssues.map((issue) => (
+            <li key={issue}>{issue}</li>
+          ))}
+        </ul>
+      )}
+
       {canOrder && (
         <Button
           full
           size="lg"
           loading={sending}
-          disabled={belowMinimum}
+          disabled={orderBlocked}
           onClick={() => setConfirmOpen(true)}
         >
           {sending ? t('cart.sending') : t('cart.confirmOrder')}

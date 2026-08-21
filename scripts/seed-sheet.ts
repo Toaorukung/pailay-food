@@ -248,6 +248,10 @@ function buildSeeds(): Record<string, string[][]> {
         sort_order: m.order ?? 100,
         price_on_request: m.onRequest ?? false,
         is_alcohol: m.alcohol ?? false,
+        min_qty: m.minQty ?? 0,
+        order_from: m.orderFrom ?? '',
+        order_until: m.orderUntil ?? '',
+        lead_hours: m.leadHours ?? 0,
       }),
     ),
 

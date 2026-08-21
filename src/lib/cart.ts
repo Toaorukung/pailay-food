@@ -1,5 +1,12 @@
 import { kv, K, SESSION_TTL_SECONDS } from './kv';
 import { emptyCart, resolveLine, buildLine, type ResolveError } from './pricing';
+import {
+  bangkokMinutes,
+  itemTimeState,
+  itemStateMessageTH,
+  minQtyOf,
+  minQtyMessageTH,
+} from './availability';
 import type { Cart, CartLine, MenuCatalog } from './types';
 
 /**
@@ -82,15 +89,42 @@ export async function addToCart(
     };
   }
 
+  // A dish outside its ordering window (drinks after 17:00, a roast that needs
+  // a day's notice) never makes it into the cart. The final order is checked
+  // again server-side; this is the early, friendlier refusal.
+  const timeState = itemTimeState(resolved.item, catalog.settings, bangkokMinutes());
+  if (!timeState.orderable) {
+    return {
+      ok: false,
+      cart: await getCart(sessionId),
+      error: itemStateMessageTH(resolved.item.name.th || resolved.item.name.en, timeState),
+    };
+  }
+
   return withCartLock(sessionId, async () => {
     const cart = await getCart(sessionId);
     const line = buildLine(resolved, input.qty, input.note, input.allergenAck);
 
     const existing = cart.lines.find((l) => l.key === line.key);
+    const nextQty = existing
+      ? Math.min(99, existing.qty + line.qty)
+      : line.qty;
+
+    // Set menus the villa only cooks in bulk carry a floor. The stepper in the
+    // dialog already respects it; this catches a request that did not.
+    const min = minQtyOf(resolved.item);
+    if (resolved.item.minQty > 0 && nextQty < min) {
+      return {
+        ok: false,
+        cart,
+        error: minQtyMessageTH(resolved.item.name.th || resolved.item.name.en, min),
+      };
+    }
+
     if (existing) {
       // Same dish, same options, same note — merge instead of stacking
       // duplicate rows on the kitchen ticket.
-      existing.qty = Math.min(99, existing.qty + line.qty);
+      existing.qty = nextQty;
       existing.allergenAck = existing.allergenAck || line.allergenAck;
     } else {
       cart.lines.push(line);

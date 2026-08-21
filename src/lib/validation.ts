@@ -114,6 +114,25 @@ const localizedFields = (prefix: string) => ({
   [`${prefix}_zh`]: z.string().max(300).default(''),
 });
 
+/** A whole number that tolerates the admin form's empty-field null and ''. */
+const nonNegIntField = (max: number) =>
+  z.preprocess(
+    (v) => (v === null || v === undefined || v === '' ? 0 : v),
+    z.number().int().min(0).max(max),
+  );
+
+/** "HH:MM" or blank. Blank means the bound is open. */
+const hmField = z.preprocess(
+  (v) => (v === null || v === undefined ? '' : v),
+  z
+    .string()
+    .max(5)
+    .refine((s) => s === '' || /^([01]\d|2[0-3]):[0-5]\d$/.test(s), {
+      message: 'เวลาต้องเป็นรูปแบบ HH:MM เช่น 17:00',
+    })
+    .default(''),
+);
+
 export const menuItemSchema = z.object({
   id: z.string().max(64).optional(),
   category_id: z.string().min(1).max(64),
@@ -131,6 +150,12 @@ export const menuItemSchema = z.object({
   sort_order: z.number().int().min(0).max(9999).default(100),
   price_on_request: z.boolean().default(false),
   is_alcohol: z.boolean().default(false),
+  // Ordering rules. The admin form sends an empty number field as null, so
+  // these coerce null/'' back to a sane default rather than rejecting it.
+  min_qty: nonNegIntField(999),
+  lead_hours: nonNegIntField(168),
+  order_from: hmField,
+  order_until: hmField,
 })
   // A market-price dish with a price attached would be billed at that price
   // and silently undercharge the villa for a kilo of grouper.

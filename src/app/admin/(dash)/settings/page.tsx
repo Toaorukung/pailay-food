@@ -25,6 +25,19 @@ const SETTINGS: SettingDef[] = [
   },
 
   {
+    key: 'order_open',
+    label: 'เริ่มรับออเดอร์ (HH:MM)',
+    hint: 'เว้นว่าง = รับตลอด เช่น 10:00',
+    section: 'เวลารับออเดอร์',
+  },
+  {
+    key: 'order_cutoff',
+    label: 'ปิดรับออเดอร์ (HH:MM)',
+    hint: 'ออเดอร์สุดท้ายของวัน เว้นว่าง = ไม่จำกัด เช่น 21:00 — เลยเวลานี้กดยืนยันสั่งไม่ได้',
+    section: 'เวลารับออเดอร์',
+  },
+
+  {
     key: 'service_charge_percent',
     label: 'ค่าบริการ (%)',
     type: 'number',

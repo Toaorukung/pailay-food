@@ -39,6 +39,12 @@ export const HEADERS: Record<TabName, string[]> = {
     // the order line. Stored price is 0 and must never be billed as such.
     'price_on_request',
     'is_alcohol',
+    // Appended, never slotted in the middle: a live sheet already has rows,
+    // and inserting a column mid-list would shift every value to its right.
+    // Ordering rules — a per-dish minimum quantity, a time-of-day window
+    // ("HH:MM"), and hours of kitchen notice. All blank/0 by default, which
+    // means "no rule" so existing rows keep behaving exactly as before.
+    'min_qty', 'order_from', 'order_until', 'lead_hours',
   ],
   MenuOptionGroups: [
     'id', 'menu_id', 'name_th', 'name_en', 'name_zh',

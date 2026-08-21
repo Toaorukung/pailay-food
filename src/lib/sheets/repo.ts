@@ -33,6 +33,11 @@ export const SETTINGS_DEFAULTS: Record<string, string> = {
   vat_percent: '0',
   vat_included: 'TRUE',
   min_order_amount: '0',
+  // Blank means the villa takes orders around the clock. A villa that closes
+  // its order book at night fills these in — order_cutoff is the 21:00 last
+  // order, order_open the morning it starts taking them.
+  order_open: '',
+  order_cutoff: '',
   promptpay_name: '',
   allergy_disclaimer_th:
     'ครัวของเราปรุงอาหารหลายชนิดในพื้นที่เดียวกัน จึงไม่สามารถรับประกันได้ว่าปราศจากสารก่อภูมิแพ้ 100% หากแพ้รุนแรง กรุณาแจ้งพนักงานโดยตรง',
@@ -80,6 +85,8 @@ function publicSettings(map: Record<string, string>): PublicSettings {
     vatPercent: num(map.vat_percent),
     vatIncluded: bool(map.vat_included, true),
     minOrderAmount: num(map.min_order_amount),
+    orderOpen: map.order_open ?? '',
+    orderCutoff: map.order_cutoff ?? '',
     promptPayName: map.promptpay_name ?? '',
     allergyDisclaimer: {
       th: map.allergy_disclaimer_th,
@@ -220,6 +227,10 @@ export async function loadCatalogFromSheets(version: number): Promise<MenuCatalo
       sortOrder: num(r.sort_order, 999),
       priceOnRequest: bool(r.price_on_request),
       isAlcohol: bool(r.is_alcohol),
+      minQty: num(r.min_qty),
+      orderFrom: r.order_from ?? '',
+      orderUntil: r.order_until ?? '',
+      leadHours: num(r.lead_hours),
       optionGroups: groupsByMenu.get(r.id) ?? [],
     }))
     .sort((a, b) => a.sortOrder - b.sortOrder);

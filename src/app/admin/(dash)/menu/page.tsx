@@ -101,6 +101,40 @@ export default function MenuPage() {
         type: 'boolean',
         hint: 'แขกต้องยืนยันอายุก่อนเพิ่มลงตะกร้า',
       },
+
+      {
+        key: 'min_qty',
+        label: 'สั่งขั้นต่ำ (ที่)',
+        type: 'number',
+        min: 0,
+        defaultValue: 0,
+        group: 'กฎการสั่ง',
+        hint: 'ใส่ 0 ถ้าไม่กำหนด — เช่น ชุด ABF ขั้นต่ำ 5, หม้อไฟขั้นต่ำ 16 ท่าน',
+      },
+      {
+        key: 'order_from',
+        label: 'เริ่มสั่งได้เวลา (HH:MM)',
+        type: 'text',
+        group: 'กฎการสั่ง',
+        hint: 'เว้นว่าง = สั่งได้ตั้งแต่เปิดร้าน',
+      },
+      {
+        key: 'order_until',
+        label: 'สั่งได้ถึงเวลา (HH:MM)',
+        type: 'text',
+        group: 'กฎการสั่ง',
+        hint: 'เว้นว่าง = สั่งได้จนถึงปิดร้าน — เช่น เครื่องดื่ม/ของเสริม ใส่ 17:00',
+      },
+      {
+        key: 'lead_hours',
+        label: 'สั่งล่วงหน้า (ชั่วโมง)',
+        type: 'number',
+        min: 0,
+        defaultValue: 0,
+        group: 'กฎการสั่ง',
+        hint: 'ใส่ 0 ถ้าไม่ต้องสั่งล่วงหน้า — เช่น บริการย่างให้ ใส่ 6 (ปิดรับก่อนร้านปิด 6 ชม.)',
+      },
+
       { key: 'is_available', label: 'พร้อมขาย', type: 'boolean', defaultValue: true },
       { key: 'sort_order', label: 'ลำดับในหมวด', type: 'number', min: 0, defaultValue: 100 },
     ];

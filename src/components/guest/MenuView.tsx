@@ -6,9 +6,11 @@ import { useI18n } from '@/i18n/provider';
 import { cn, Badge, Button, EmptyState } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
 import { buildIndex, search, allergenConflicts } from '@/lib/search';
+import { itemTimeState } from '@/lib/availability';
 import type { MenuCatalog, MenuItem } from '@/lib/types';
 import type { SessionSnapshot } from '@/lib/snapshot';
 import { ItemDialog } from './ItemDialog';
+import { itemTimeText } from './availabilityText';
 
 export function MenuView({
   catalog,
@@ -237,6 +239,7 @@ export function MenuView({
                     item={item}
                     catalog={catalog}
                     profile={profile}
+                    nowMinutes={snapshot.nowMinutes}
                     onSelect={() => setSelected(item)}
                   />
                 ))}
@@ -252,6 +255,7 @@ export function MenuView({
               item={item}
               catalog={catalog}
               profile={profile}
+              nowMinutes={snapshot.nowMinutes}
               onSelect={() => setSelected(item)}
             />
           ))}
@@ -265,6 +269,7 @@ export function MenuView({
           sessionId={snapshot.session.id}
           profile={profile}
           canOrder={canOrder}
+          nowMinutes={snapshot.nowMinutes}
           open
           onOpenChange={(open) => !open && setSelected(null)}
           onAdded={async () => {
@@ -281,17 +286,21 @@ function ItemRow({
   item,
   catalog,
   profile,
+  nowMinutes,
   onSelect,
 }: {
   item: MenuItem;
   catalog: MenuCatalog;
   profile: string[];
+  nowMinutes: number;
   onSelect: () => void;
 }) {
   const { t, L } = useI18n();
   const conflict = allergenConflicts(item, profile);
   const flagged = conflict.certain.length > 0;
   const maybe = conflict.possible.length > 0;
+  const timeState = itemTimeState(item, catalog.settings, nowMinutes);
+  const timeBlocked = !timeState.orderable;
 
   return (
     <li>
@@ -302,7 +311,7 @@ function ItemRow({
           'flex w-full gap-3 rounded-2xl border p-3 text-left transition-colors',
           'bg-[var(--surface)] hover:bg-[var(--surface-sunken)]',
           flagged ? 'border-[var(--danger)]' : 'border-[var(--line)]',
-          !item.isAvailable && 'opacity-60',
+          (!item.isAvailable || timeBlocked) && 'opacity-60',
         )}
       >
         {item.imageUrl ? (
@@ -334,6 +343,9 @@ function ItemRow({
           <div className="flex flex-wrap items-center gap-1.5">
             {!item.isAvailable && (
               <Badge tone="neutral">{t('item.unavailable')}</Badge>
+            )}
+            {item.isAvailable && timeBlocked && (
+              <Badge tone="warning">{itemTimeText(timeState, t)}</Badge>
             )}
             {item.isAlcohol && (
               <Badge tone="warning">
@@ -381,7 +393,7 @@ function ItemRow({
                 : formatMoney(item.price, catalog.settings.currency)}
             </p>
 
-            {item.isAvailable && (
+            {item.isAvailable && !timeBlocked && (
               <span
                 aria-hidden
                 className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-xl font-bold leading-none text-white shadow-[var(--shadow-brand)]"

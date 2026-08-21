@@ -8,6 +8,7 @@ import {
 import { sessionPayments } from './payments';
 import { computeTotals } from './pricing';
 import { getCatalog } from './menu-cache';
+import { bangkokMinutes, orderWindowState } from './availability';
 import type { Cart, GuestSession, Order, Payment } from './types';
 
 /**
@@ -36,6 +37,17 @@ export interface SessionSnapshot {
    */
   awaitingPricing: { orderId: string; itemId: string; name: string; qty: number }[];
   menuVersion: number;
+  /**
+   * Time of day in Thailand, minutes since midnight, computed on the server.
+   * The client reads every time-of-day rule against this rather than the
+   * device clock, so a phone set to the wrong timezone still sees the villa's
+   * real hours and agrees with what the order endpoint will enforce.
+   */
+  nowMinutes: number;
+  /** Whether the villa is taking orders right now, and why not if it isn't. */
+  orderWindow:
+    | { open: true }
+    | { open: false; code: 'BEFORE_OPEN' | 'AFTER_CUTOFF'; openMin: number | null; cutoffMin: number | null };
 }
 
 /** The session as the guest is allowed to see it. */
@@ -109,6 +121,8 @@ export async function buildSnapshot(
     byOrder[payment.orderId] = publicPayment(payment);
   }
 
+  const nowMinutes = bangkokMinutes();
+
   return {
     session: publicSession(session),
     cart,
@@ -119,5 +133,7 @@ export async function buildSnapshot(
     outstandingTotal: outstandingTotal(orders),
     awaitingPricing: unpricedItems(orders),
     menuVersion: catalog.version,
+    nowMinutes,
+    orderWindow: orderWindowState(catalog.settings, nowMinutes),
   };
 }

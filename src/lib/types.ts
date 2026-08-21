@@ -76,6 +76,29 @@ export interface MenuItem {
   priceOnRequest: boolean;
   /** Beer and spirits. Gated behind an age confirmation before ordering. */
   isAlcohol: boolean;
+  /**
+   * Smallest quantity a guest may order of this dish in one line. 0 means no
+   * floor. Used for set menus a villa only cooks in bulk — an ABF breakfast at
+   * "min 5 sets", a hotpot at "min 16 people". The quantity stepper starts
+   * here and cannot go below it, and the order is rejected server-side if a
+   * line still falls short.
+   */
+  minQty: number;
+  /**
+   * Time-of-day window this dish can be ordered in, "HH:MM" in Thailand time.
+   * Blank ends are open. `orderUntil` is the load-bearing one — drinks the
+   * villa sells itself close for orders at 17:00 so the kitchen is not chasing
+   * a last-minute crate of beer at closing.
+   */
+  orderFrom: string;
+  orderUntil: string;
+  /**
+   * Hours of notice the kitchen needs for this dish. A whole roast pig or a
+   * "come and grill for you" service cannot be started on the spot. With a
+   * lead time set, the dish stops being orderable once there is no longer that
+   * much time left before the day's cutoff.
+   */
+  leadHours: number;
   optionGroups: MenuOptionGroup[];
 }
 
@@ -101,6 +124,14 @@ export interface PublicSettings {
   minOrderAmount: number;
   /** Shown on dishes priced by weight, so the guest can ring the kitchen. */
   contactPhone: string;
+  /**
+   * When the villa takes orders, "HH:MM" in Thailand time. Both blank means
+   * around the clock. Outside the window the guest can still browse and build
+   * a cart, but confirming the order is refused — the last-order cutoff a
+   * villa sets at 21:00 lives here.
+   */
+  orderOpen: string;
+  orderCutoff: string;
   /**
    * The same artwork shown as a welcome popup the first time a guest opens the
    * app, before they are asked for their name, phone and allergies.

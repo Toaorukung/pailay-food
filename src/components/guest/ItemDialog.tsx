@@ -7,6 +7,8 @@ import { Badge, Button, Checkbox, Dialog, cn } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
 import { allergenConflicts } from '@/lib/search';
 import { NOTE_MAX_LENGTH } from '@/lib/validation';
+import { itemTimeState, minQtyOf } from '@/lib/availability';
+import { itemTimeText } from './availabilityText';
 import type { MenuCatalog, MenuItem } from '@/lib/types';
 import { guestApi } from './api';
 
@@ -16,6 +18,7 @@ export function ItemDialog({
   sessionId,
   profile,
   canOrder,
+  nowMinutes,
   open,
   onOpenChange,
   onAdded,
@@ -25,12 +28,14 @@ export function ItemDialog({
   sessionId: string;
   profile: string[];
   canOrder: boolean;
+  nowMinutes: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdded: () => Promise<void>;
 }) {
   const { t, L } = useI18n();
-  const [qty, setQty] = useState(1);
+  const minQty = minQtyOf(item);
+  const [qty, setQty] = useState(minQty);
   const [note, setNote] = useState('');
   const [ack, setAck] = useState(false);
   const [selection, setSelection] = useState<Record<string, string[]>>(() =>
@@ -74,10 +79,14 @@ export function ItemDialog({
     (g) => g.required && (selection[g.id]?.length ?? 0) < Math.max(1, g.minSelect),
   );
 
+  const timeState = itemTimeState(item, catalog.settings, nowMinutes);
+  const timeBlocked = !timeState.orderable;
+
   const noteTooLong = note.length > NOTE_MAX_LENGTH;
   const blocked =
     !canOrder ||
     !item.isAvailable ||
+    timeBlocked ||
     missingRequired.length > 0 ||
     noteTooLong ||
     (needsAck && !ack) ||
@@ -160,6 +169,18 @@ export function ItemDialog({
             <Badge tone="warning">{t('alcohol.badge', { age: minAge })}</Badge>
           )}
         </div>
+
+        {timeBlocked && (
+          <p className="rounded-xl border-l-4 border-[var(--warning)] bg-[var(--warning-soft)] p-3 text-sm font-medium text-[var(--warning)]">
+            {itemTimeText(timeState, t)}
+          </p>
+        )}
+
+        {!timeBlocked && item.leadHours > 0 && (
+          <p className="rounded-xl bg-[var(--surface-sunken)] p-3 text-sm muted">
+            {t('avail.itemLead', { hours: item.leadHours })}
+          </p>
+        )}
 
         {item.priceOnRequest && (
           <div className="space-y-1 rounded-xl border-l-4 border-[var(--brand)] bg-[var(--brand-soft)] p-3 text-[var(--brand-soft-text)]">
@@ -351,12 +372,20 @@ export function ItemDialog({
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold">{t('item.qty')}</span>
+          <span className="text-sm font-semibold">
+            {t('item.qty')}
+            {minQty > 1 && (
+              <span className="ml-2 text-xs font-normal muted">
+                {t('avail.minQty', { n: minQty })}
+              </span>
+            )}
+          </span>
           <div className="flex items-center gap-1">
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              disabled={qty <= minQty}
+              onClick={() => setQty((q) => Math.max(minQty, q - 1))}
               aria-label="-"
             >
               <Minus className="size-4" />
@@ -396,11 +425,13 @@ export function ItemDialog({
         >
           {!item.isAvailable
             ? t('item.unavailable')
-            : item.priceOnRequest
-              ? t('item.addOnRequest')
-              : t('item.addWithPrice', {
-                  price: formatMoney(unitPrice * qty, catalog.settings.currency),
-                })}
+            : timeBlocked
+              ? t('item.closedNow')
+              : item.priceOnRequest
+                ? t('item.addOnRequest')
+                : t('item.addWithPrice', {
+                    price: formatMoney(unitPrice * qty, catalog.settings.currency),
+                  })}
         </Button>
       </div>
     </Dialog>
