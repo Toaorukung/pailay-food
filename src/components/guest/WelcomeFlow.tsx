@@ -24,9 +24,10 @@ const PHONE_ALLOWED = /^[0-9+\-() ]+$/;
  * nobody can chase. The allergy question is the step after these two, and is
  * asked by AllergyDialog so the same screen serves the header's edit link.
  *
- * The whole flow is skippable. A guest who dismisses it gets the menu and is
- * asked again on their next visit, because the phone number is what marks the
- * session as introduced.
+ * These two steps cannot be dismissed — no close button, no Escape, no
+ * click-outside — so a guest cannot reach the menu without leaving a name and
+ * phone. The only way forward is the button in the footer. The phone number is
+ * what marks the session as introduced, so once saved the flow never returns.
  */
 export function WelcomeFlow({
   step,
@@ -101,6 +102,10 @@ export function WelcomeFlow({
   return (
     <Dialog
       open={step !== null}
+      // Required onboarding: no close button, no Escape, no click-outside. A
+      // guest who dismissed this would skip giving their name and phone, and an
+      // order with no number is one reception cannot chase.
+      dismissible={false}
       onOpenChange={(open) => {
         if (!open) onStepChange(null);
       }}

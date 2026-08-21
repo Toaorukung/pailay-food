@@ -258,6 +258,7 @@ export function Dialog({
   description,
   children,
   footer,
+  dismissible = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -265,6 +266,13 @@ export function Dialog({
   description?: ReactNode;
   children?: ReactNode;
   footer?: ReactNode;
+  /**
+   * When false the dialog cannot be dismissed — no close button, no Escape, no
+   * click-outside. Used for a required step the guest has to complete (entering
+   * their name and phone) rather than skip. The only way out is a control
+   * inside the dialog that calls onOpenChange itself.
+   */
+  dismissible?: boolean;
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -273,6 +281,9 @@ export function Dialog({
           className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[3px] animate-fade"
         />
         <DialogPrimitive.Content
+          onEscapeKeyDown={dismissible ? undefined : (e) => e.preventDefault()}
+          onPointerDownOutside={dismissible ? undefined : (e) => e.preventDefault()}
+          onInteractOutside={dismissible ? undefined : (e) => e.preventDefault()}
           className={cn(
             'fixed z-50 flex flex-col gap-4 bg-[var(--surface)]',
             'shadow-[var(--shadow-lg)]',
@@ -302,15 +313,17 @@ export function Dialog({
                 </DialogPrimitive.Description>
               )}
             </div>
-            <DialogPrimitive.Close
-              className={cn(
-                '-m-1 shrink-0 rounded-lg p-1.5 muted transition-colors',
-                'hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]',
-              )}
-              aria-label="ปิด"
-            >
-              <X className="size-5" />
-            </DialogPrimitive.Close>
+            {dismissible && (
+              <DialogPrimitive.Close
+                className={cn(
+                  '-m-1 shrink-0 rounded-lg p-1.5 muted transition-colors',
+                  'hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]',
+                )}
+                aria-label="ปิด"
+              >
+                <X className="size-5" />
+              </DialogPrimitive.Close>
+            )}
           </div>
 
           {children}
