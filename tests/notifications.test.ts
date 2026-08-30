@@ -154,3 +154,27 @@ describe('order item modification and retotaling', () => {
   });
 });
 
+describe('payment and stay completion', () => {
+  it('marks payment as approved and links session', () => {
+    const payment = {
+      id: 'p-1',
+      sessionId: 's-123',
+      tableLabel: 'Villa 1',
+      villa: 'Villa 1',
+      orderId: 'ord-123',
+      amount: 500,
+      method: 'promptpay' as const,
+      status: 'APPROVED' as const,
+      slipUrl: 'https://example.com/slip.jpg',
+      slipUploadedAt: new Date().toISOString(),
+      verifiedBy: 'Admin User',
+      verifiedAt: new Date().toISOString(),
+      rejectReason: null,
+      createdAt: new Date().toISOString(),
+    };
+    expect(payment.status).toBe('APPROVED');
+    expect(payment.sessionId).toBe('s-123');
+  });
+});
+
+

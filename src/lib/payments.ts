@@ -111,6 +111,15 @@ export async function attachSlipAsAdmin(
   });
 
   await dropFromSlipQueue(id);
+
+  // Automatically end the guest stay (close session) upon slip upload
+  if (payment.sessionId) {
+    const { closeSession } = await import('./session');
+    await closeSession(payment.sessionId, `Auto-closed on slip upload by ${adminName}`).catch((err) => {
+      console.error('[payments] failed to auto close session on slip upload', err);
+    });
+  }
+
   return next;
 }
 

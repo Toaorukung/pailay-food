@@ -32,6 +32,7 @@ export function PaymentQueue() {
   const { data, loading, refresh } = useLive();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
 
   const orders = data?.orders ?? [];
@@ -55,17 +56,23 @@ export function PaymentQueue() {
   async function upload(payment: Payment, file: File) {
     setBusy(payment.id);
     setError(null);
+    setNotice(null);
 
     const form = new FormData();
     form.append('paymentId', payment.id);
     form.append('slip', file, file.name || 'slip.jpg');
 
-    const res = await adminFetch('/api/admin/payments', {
+    const res = await adminFetch<{ payment: Payment; sessionClosed?: boolean }>('/api/admin/payments', {
       method: 'POST',
       body: form,
     });
     setBusy(null);
-    if (!res.ok) setError(res.error);
+    if (!res.ok) {
+      setError(res.error);
+    } else {
+      setNotice(`บันทึกสลิปและจบการเข้าพักของ ${payment.villa || payment.tableLabel} เรียบร้อยแล้ว`);
+      setTimeout(() => setNotice(null), 5000);
+    }
     await refresh();
   }
 
@@ -93,9 +100,15 @@ export function PaymentQueue() {
           <Info className="mt-0.5 size-3.5 shrink-0" />
           ออเดอร์ที่ยืนยันแล้วแต่ยังไม่ได้บันทึกการชำระเงิน
           เมื่อได้รับสลิปโอนจากลูกค้าให้อัปโหลดที่การ์ดของออเดอร์นั้น —
-          ยอดในสลิปต้องตรงกับยอดออเดอร์ทุกบาท
+          ระบบจะบันทึกรายได้และจบการเข้าพักของวิลล่าให้อัตโนมัติ
         </p>
       </header>
+
+      {notice && (
+        <p className="rounded-xl bg-[var(--success-soft)] p-3 text-sm text-[var(--success)]">
+          {notice}
+        </p>
+      )}
 
       {error && (
         <p className="rounded-xl bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">

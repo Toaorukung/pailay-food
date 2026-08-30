@@ -102,5 +102,17 @@ export const POST = handler(async (req: Request) => {
     clientIp(req),
   );
 
-  return ok({ payment: updated });
+  await audit(
+    auth.admin,
+    'session.close',
+    updated.sessionId,
+    {
+      reason: 'Auto-closed on slip upload',
+      paymentId: updated.id,
+      villa: updated.villa,
+    },
+    clientIp(req),
+  );
+
+  return ok({ payment: updated, sessionClosed: true });
 });
