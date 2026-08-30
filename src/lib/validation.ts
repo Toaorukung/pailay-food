@@ -91,13 +91,36 @@ export const placeOrderSchema = z.object({
   idempotencyKey: z.string().min(8).max(64),
 });
 
-export const rejectPaymentSchema = z.object({
+export const orderIdSchema = z.object({
+  orderId: z.string().min(1).max(64),
+});
+
+export const paymentIdSchema = z.object({
   paymentId: z.string().min(1).max(64),
-  reason: z.string().min(1).max(300),
+});
+
+/**
+ * Staff adjusting a pending ticket on the phone with the guest. A quantity of
+ * 0 removes the line; the server refuses to empty an order this way, since
+ * "cancel it" is a different button with a different meaning.
+ */
+export const editOrderItemsSchema = z.object({
+  orderId: z.string().min(1).max(64),
+  items: z
+    .array(
+      z.object({
+        itemId: z.string().min(1).max(64),
+        qty: z.number().int().min(0).max(99),
+      }),
+    )
+    .min(1)
+    .max(60),
 });
 
 export const orderStatusSchema = z.object({
   orderId: z.string().min(1).max(64),
+  // PENDING_CONFIRM is deliberately absent: a ticket only leaves the confirm
+  // queue through the confirm action, which is what messages the guest.
   status: z.enum(['NEW', 'COOKING', 'SERVED', 'CANCELLED']),
 });
 
@@ -187,15 +210,15 @@ export const tableSchema = z.object({
   id: z.string().max(64).optional(),
   label: z.string().min(1).max(80),
   villa: z.string().max(80).default(''),
-  // First segment of the printed link. Restricted to URL-safe characters so
-  // the QR encodes cleanly and the slug cannot smuggle a path separator.
+  // The villa's own address segment, /{slug}/{sessionId}. Restricted to
+  // URL-safe characters so a slug cannot smuggle a path separator.
   slug: z
     .string()
     .max(40)
     .regex(/^[a-z0-9-]*$/, 'ใช้ได้เฉพาะ a-z, 0-9 และ - เท่านั้น')
     .default(''),
-  // Second segment. Blank is fine — the app derives a stable code from the
-  // villa id — but changing it invalidates every QR already printed.
+  // Left over from the printed-QR era. Nothing reads it any more; the column
+  // stays so existing sheet rows round-trip unchanged.
   qr_code: z
     .string()
     .max(40)

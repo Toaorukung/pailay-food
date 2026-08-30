@@ -24,21 +24,22 @@ import type {
   OrderStatus,
   Payment,
 } from './types';
-import { isPaid } from './types';
+import { isConfirmed } from './types';
 
 /**
  * Orders live in Redis and are mirrored into Sheets by the write-behind queue.
  * The kitchen display reads Redis, so a Sheets outage never stops service.
  *
- * An order is paid before it is cooked. Confirming a cart creates the order
- * and its payment together, in one of two states:
+ * An order is checked by a human before it is cooked. Confirming a cart
+ * creates the order as PENDING_CONFIRM together with the payment record it
+ * will eventually be settled against, and notifies staff on Lark. Staff open
+ * /admin/pending, ring the villa, adjust or price whatever needs it, and
+ * confirm — which is the moment the order reaches the kitchen and the guest
+ * gets their confirmation on LINE.
  *
- *   AWAITING_PRICING  the order contains something sold by weight, so staff
- *                     have to weigh and price it before a total exists
- *   UNPAID            the total is known and the guest can transfer
- *
- * From there: slip uploaded -> AWAITING_PAYMENT -> staff verify -> NEW, which
- * is the first moment the kitchen sees it.
+ * Money is not part of that path. The guest pays off the app and an admin
+ * uploads the slip against the payment afterwards, so nothing about payment
+ * state can stop food being cooked.
  */
 
 const ORDER_RETENTION_SECONDS = 30 * 24 * 60 * 60;
@@ -51,6 +52,13 @@ export interface PlaceOrderResult {
   error?: string;
   removed?: { name: string }[];
   repriced?: { name: string; was: number; now: number }[];
+  /**
+   * This idempotency key had already produced an order — a double tap or a
+   * retry after a dropped response. The caller gets the original order back,
+   * and must not repeat anything it does on a real placement (notifying staff
+   * twice for one ticket is exactly the confusion the queue exists to avoid).
+   */
+  duplicate?: boolean;
 }
 
 export async function placeOrder(
@@ -73,7 +81,12 @@ export async function placeOrder(
         const payment = await kv()
           .get<Payment>(K.payment(existing.paymentId))
           .catch(() => null);
-        return { ok: true, order: existing, payment: payment ?? undefined };
+        return {
+          ok: true,
+          order: existing,
+          payment: payment ?? undefined,
+          duplicate: true,
+        };
       }
     }
     return { ok: false, error: 'กำลังส่งออเดอร์อยู่ กรุณารอสักครู่' };
@@ -145,10 +158,6 @@ export async function placeOrder(
     pricedAt: null,
   }));
 
-  // Something on this ticket has to go on a scale before there is a price to
-  // charge, so the guest cannot pay yet.
-  const needsPricing = totals.unpricedCount > 0;
-
   const order: Order = {
     id,
     sessionId: session.id,
@@ -156,13 +165,19 @@ export async function placeOrder(
     tableLabel: session.tableLabel,
     villa: session.villa,
     createdAt,
-    status: needsPricing ? 'AWAITING_PRICING' : 'UNPAID',
+    // Every ticket waits for a member of staff, whether or not it holds
+    // anything sold by weight. Pricing the scale lines is one of the things
+    // they do on the confirm screen, not a separate state to get stuck in.
+    status: 'PENDING_CONFIRM',
     items,
     subtotal: totals.subtotal,
     serviceCharge: totals.serviceCharge,
     vat: totals.vat,
     total: totals.total,
     paymentId,
+    lineUserId: session.lineUserId ?? '',
+    confirmedAt: null,
+    confirmedBy: null,
     // Snapshotted so the kitchen ticket stays correct even if the guest edits
     // their allergy profile afterwards.
     allergyProfile: session.allergyProfile,
@@ -236,6 +251,8 @@ async function persistOrder(order: Order): Promise<void> {
     service_charge: order.serviceCharge,
     vat: order.vat,
     total: order.total,
+    confirmed_at: order.confirmedAt ?? '',
+    confirmed_by: order.confirmedBy ?? '',
   });
 
   for (const item of order.items) {
@@ -306,61 +323,221 @@ export async function setOrderStatus(
 ): Promise<Order | null> {
   const order = await getOrder(id);
   if (!order) return null;
+  // A ticket nobody has confirmed must not be dragged onto the board by hand:
+  // confirming is what messages the guest, and skipping it would start the
+  // kitchen on food the guest was never told about. Cancelling is allowed —
+  // that is a legitimate way to kill a pending ticket.
+  if (order.status === 'PENDING_CONFIRM' && status !== 'CANCELLED') return null;
   return saveOrder({ ...order, status });
 }
 
 /**
- * Called when a slip lands. Moves the order out of the guest's hands and into
- * the staff verification queue.
+ * Staff release a ticket to the kitchen.
+ *
+ * The single gate in the whole flow. Everything downstream keys off it: the
+ * order appears on the kitchen display, its payment joins the queue of slips
+ * an admin still has to upload, and the guest is messaged on LINE.
+ *
+ * Refuses while any market-price line is still unpriced. Confirming one would
+ * put a ticket into the kitchen and a message in the guest's hand with a total
+ * that is missing a kilo of grouper, and the guest has already been told what
+ * they owe by then.
  */
-export async function markAwaitingPayment(id: string): Promise<Order | null> {
+export async function confirmOrder(
+  id: string,
+  adminName: string,
+): Promise<{ ok: true; order: Order } | { ok: false; error: string }> {
   const order = await getOrder(id);
-  if (!order) return null;
-  if (order.status !== 'UNPAID' && order.status !== 'AWAITING_PAYMENT') {
-    return order;
+  if (!order) return { ok: false, error: 'ไม่พบออเดอร์' };
+  if (isConfirmed(order.status)) return { ok: true, order };
+  if (order.status === 'CANCELLED') {
+    return { ok: false, error: 'ออเดอร์นี้ถูกยกเลิกไปแล้ว' };
   }
-  return saveOrder({ ...order, status: 'AWAITING_PAYMENT' });
+  if (order.items.length === 0) {
+    return { ok: false, error: 'ออเดอร์นี้ไม่เหลือรายการแล้ว กรุณายกเลิกแทน' };
+  }
+  if (order.items.some((i) => i.priceOnRequest && !i.pricedAt)) {
+    return { ok: false, error: 'ยังมีรายการที่ต้องใส่ราคาก่อนยืนยัน' };
+  }
+
+  const confirmed = await saveOrder({
+    ...order,
+    status: 'NEW',
+    confirmedAt: new Date().toISOString(),
+    confirmedBy: adminName,
+  });
+
+  // The order is now real money owed, so it joins the list of slips an admin
+  // has to upload against.
+  const { updatePaymentAmount, markAwaitingSlip } = await import('./payments');
+  await updatePaymentAmount(confirmed.paymentId, confirmed.total);
+  await markAwaitingSlip(confirmed.paymentId);
+
+  return { ok: true, order: confirmed };
 }
 
-/** Payment verified. This is the moment the kitchen is told to start. */
-export async function markOrderPaid(id: string): Promise<Order | null> {
+/** Staff kill a ticket — the guest changed their mind on the phone. */
+export async function cancelOrder(
+  id: string,
+  adminName: string,
+): Promise<Order | null> {
   const order = await getOrder(id);
   if (!order) return null;
-  if (isPaid(order.status)) return order;
-  return saveOrder({ ...order, status: 'NEW' });
+  if (order.status === 'CANCELLED') return order;
+
+  const cancelled = await saveOrder({
+    ...order,
+    status: 'CANCELLED',
+    confirmedBy: adminName,
+    confirmedAt: order.confirmedAt ?? new Date().toISOString(),
+  });
+
+  // Nothing is owed on a cancelled ticket, so it leaves the slip queue.
+  const { dropFromSlipQueue } = await import('./payments');
+  await dropFromSlipQueue(cancelled.paymentId);
+  return cancelled;
 }
 
-/** Slip rejected — hand the order back to the guest to pay again. */
-export async function markOrderUnpaid(id: string): Promise<Order | null> {
-  const order = await getOrder(id);
-  if (!order) return null;
-  if (isPaid(order.status)) return order;
-  return saveOrder({ ...order, status: 'UNPAID' });
+/**
+ * Rebuilds an order's money from its lines.
+ *
+ * Totals are always recomputed from the item list rather than adjusted by a
+ * delta, so a correction after a typo lands on the right number instead of
+ * compounding the mistake — and so a repriced order and an ordinary one are
+ * totalled by exactly the same code.
+ */
+function retotal(
+  order: Order,
+  items: OrderItem[],
+  settings: MenuCatalog['settings'],
+): Order {
+  const lines: CartLine[] = items.map((i) => ({
+    key: i.id,
+    menuId: i.menuId,
+    name: i.name,
+    qty: i.qty,
+    unitPrice: i.unitPrice,
+    options: i.options,
+    note: i.note,
+    allergenAck: i.allergenAck,
+    priceOnRequest: i.priceOnRequest,
+    addedAt: order.createdAt,
+  }));
+  const totals = computeTotals(lines, settings);
+
+  return {
+    ...order,
+    items,
+    subtotal: totals.subtotal,
+    serviceCharge: totals.serviceCharge,
+    vat: totals.vat,
+    total: totals.total,
+  };
+}
+
+export interface OrderItemEdit {
+  itemId: string;
+  /** 0 removes the line. */
+  qty: number;
+}
+
+/**
+ * Staff adjust a ticket while they have the guest on the phone — "we are out
+ * of the sea bass", "make it four not two".
+ *
+ * Only while the order is still pending. Once it is confirmed the guest has
+ * been sent a message saying what they are getting, and quietly editing behind
+ * that message is how a bill stops matching what anyone agreed to.
+ */
+export async function updateOrderItems(
+  orderId: string,
+  edits: OrderItemEdit[],
+  settings: MenuCatalog['settings'],
+): Promise<{ ok: true; order: Order } | { ok: false; error: string }> {
+  const order = await getOrder(orderId);
+  if (!order) return { ok: false, error: 'ไม่พบออเดอร์' };
+  if (order.status !== 'PENDING_CONFIRM') {
+    return { ok: false, error: 'แก้ไขได้เฉพาะออเดอร์ที่ยังรอคอนเฟิร์มเท่านั้น' };
+  }
+
+  const byId = new Map(edits.map((e) => [e.itemId, e.qty]));
+  const unknown = edits.filter((e) => !order.items.some((i) => i.id === e.itemId));
+  if (unknown.length > 0) return { ok: false, error: 'ไม่พบรายการที่จะแก้ไข' };
+
+  const items = order.items
+    .map((item) => {
+      const qty = byId.get(item.id);
+      if (qty === undefined || qty === item.qty) return item;
+      return { ...item, qty, lineTotal: round2(item.unitPrice * qty) };
+    })
+    .filter((item) => item.qty > 0);
+
+  if (items.length === 0) {
+    return { ok: false, error: 'ลบรายการทั้งหมดไม่ได้ — ให้ยกเลิกออเดอร์แทน' };
+  }
+
+  const next = retotal(order, items, settings);
+  await saveOrder(next);
+
+  const { updatePaymentAmount } = await import('./payments');
+  await updatePaymentAmount(next.paymentId, next.total);
+
+  return { ok: true, order: next };
 }
 
 // ── Money ───────────────────────────────────────────────────
 
-/** What the villa has actually paid across the whole session. */
-export function paidTotal(orders: Order[]): number {
-  return round2(
-    orders.filter((o) => isPaid(o.status)).reduce((sum, o) => sum + o.total, 0),
-  );
+/**
+ * Whether an order counts as money in.
+ *
+ * Payment happens outside the app, so an order's own status says nothing about
+ * it — the answer lives on the payment record, which an admin marks settled by
+ * uploading the transfer slip. Anything with no payment record found is
+ * treated as unsettled, which is the safe direction to be wrong in.
+ */
+export function isSettled(
+  order: Order,
+  paymentStatus: Payment['status'] | undefined,
+): boolean {
+  return isConfirmed(order.status) && paymentStatus === 'APPROVED';
 }
 
-/** Ordered but not yet settled — shown to the guest as outstanding. */
-export function outstandingTotal(orders: Order[]): number {
+/** What the villa has actually paid across the whole session. */
+export function paidTotal(
+  orders: Order[],
+  paymentStatusOf: (order: Order) => Payment['status'] | undefined,
+): number {
   return round2(
     orders
-      .filter((o) => o.status === 'UNPAID' || o.status === 'AWAITING_PAYMENT')
+      .filter((o) => isSettled(o, paymentStatusOf(o)))
       .reduce((sum, o) => sum + o.total, 0),
   );
 }
 
 /**
- * Lines the kitchen has to weigh before the guest can be charged.
+ * Confirmed but not yet settled — what the villa still owes.
  *
- * An order sitting in AWAITING_PRICING is dead in the water until staff act,
- * so both the guest's screen and the kitchen display surface it.
+ * Pending tickets are deliberately excluded: staff have not agreed to them
+ * yet, and showing a guest an amount owed for food that might be cancelled on
+ * the phone is worse than showing nothing.
+ */
+export function outstandingTotal(
+  orders: Order[],
+  paymentStatusOf: (order: Order) => Payment['status'] | undefined,
+): number {
+  return round2(
+    orders
+      .filter((o) => isConfirmed(o.status) && paymentStatusOf(o) !== 'APPROVED')
+      .reduce((sum, o) => sum + o.total, 0),
+  );
+}
+
+/**
+ * Lines the kitchen has to weigh before the ticket can be confirmed.
+ *
+ * A pending order holding any of these cannot be confirmed, so both the
+ * guest's screen and the confirm queue surface them rather than showing a
+ * total that is quietly missing a kilo of grouper.
  */
 export function unpricedItems(
   orders: Order[],
@@ -382,10 +559,9 @@ export function unpricedItems(
 /**
  * Staff enter the weighed price for one order line.
  *
- * Order totals are recomputed from the item list rather than adjusted by a
- * delta, so a correction after a typo lands on the right number instead of
- * compounding the mistake. Once nothing is left to weigh the order moves to
- * UNPAID and the guest can pay it.
+ * Done on the confirm screen, before the guest is told a total. The order
+ * stays pending either way — pricing is one of the things staff do while
+ * checking a ticket, not a state change of its own.
  */
 export async function repriceOrderItem(
   orderId: string,
@@ -412,36 +588,7 @@ export async function repriceOrderItem(
       : i,
   );
 
-  // Rebuild the order's money from its lines using the same maths the cart
-  // used, so a repriced order and a normal one are totalled identically.
-  const lines: CartLine[] = items.map((i) => ({
-    key: i.id,
-    menuId: i.menuId,
-    name: i.name,
-    qty: i.qty,
-    unitPrice: i.unitPrice,
-    options: i.options,
-    note: i.note,
-    allergenAck: i.allergenAck,
-    priceOnRequest: i.priceOnRequest,
-    addedAt: order.createdAt,
-  }));
-  const totals = computeTotals(lines, settings);
-
-  const stillWaiting = totals.unpricedCount > 0;
-  const next: Order = {
-    ...order,
-    items,
-    subtotal: totals.subtotal,
-    serviceCharge: totals.serviceCharge,
-    vat: totals.vat,
-    total: totals.total,
-    status:
-      order.status === 'AWAITING_PRICING' && !stillWaiting
-        ? 'UNPAID'
-        : order.status,
-  };
-
+  const next = retotal(order, items, settings);
   await saveOrder(next);
 
   // The payment was raised with a placeholder amount; it has to follow.

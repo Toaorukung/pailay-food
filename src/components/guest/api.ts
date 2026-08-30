@@ -1,15 +1,6 @@
 'use client';
 
 import type { SessionSnapshot, PublicPayment } from '@/lib/snapshot';
-
-/** Everything needed to render a payment screen for one order. */
-export interface PaymentContext {
-  payment: PublicPayment;
-  qr: { dataUrl: string; payload: string } | null;
-  promptPayId: string;
-  promptPayName: string;
-  paymentNote: { th: string; en: string; zh: string };
-}
 import type { MenuCatalog, Order } from '@/lib/types';
 
 /** What the session holds about the guest themselves. */
@@ -133,60 +124,12 @@ export const guestApi = {
     ),
 
   placeOrder: (sessionId: string, idempotencyKey: string) =>
-    call<PaymentContext & { order: Order; removed?: { name: string }[] }>(
-      `/api/s/${sessionId}/order`,
-      { method: 'POST', body: JSON.stringify({ idempotencyKey }) },
-    ),
-
-  /** Fetches the PromptPay QR for one order — used to pay and to re-pay. */
-  payFor: (sessionId: string, orderId: string) =>
-    call<PaymentContext & { order: Order }>(
-      `/api/s/${sessionId}/pay?orderId=${encodeURIComponent(orderId)}`,
-      { method: 'POST' },
-    ),
-
-  uploadSlip: (sessionId: string, orderId: string, file: Blob) => {
-    const form = new FormData();
-    form.append('slip', file, 'slip.jpg');
-    return call<{ payment: PublicPayment }>(
-      `/api/s/${sessionId}/slip?orderId=${encodeURIComponent(orderId)}`,
-      { method: 'POST', body: form },
-    );
-  },
+    call<{
+      order: Order;
+      payment: PublicPayment;
+      removed?: { name: string }[];
+    }>(`/api/s/${sessionId}/order`, {
+      method: 'POST',
+      body: JSON.stringify({ idempotencyKey }),
+    }),
 };
-
-/**
- * Shrinks a photo in the browser before upload.
- *
- * A modern phone camera produces 4-8MB per shot; on villa wifi that is a long,
- * failure-prone upload for an image that only has to be readable by a human.
- * Doing it here also means an iPhone HEIC is decoded by Safari and handed to
- * us as JPEG, which keeps the server's accepted-format list short.
- */
-export async function compressImage(
-  file: File,
-  maxDimension = 1600,
-  quality = 0.82,
-): Promise<Blob> {
-  const bitmap = await createImageBitmap(file).catch(() => null);
-  if (!bitmap) return file;
-
-  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
-  const width = Math.round(bitmap.width * scale);
-  const height = Math.round(bitmap.height * scale);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return file;
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', quality),
-  );
-  // If the canvas path produced nothing, sending the original is better than
-  // failing the payment step.
-  return blob ?? file;
-}

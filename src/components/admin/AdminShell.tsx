@@ -6,11 +6,12 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   ChefHat,
+  ClipboardCheck,
   Wallet,
   UtensilsCrossed,
   Tags,
   TriangleAlert,
-  QrCode,
+  Home,
   Users,
   Settings,
   BarChart3,
@@ -41,8 +42,11 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: 'ระหว่างให้บริการ',
     items: [
       { href: '/admin', label: 'ภาพรวม', icon: LayoutDashboard, minRole: 'STAFF' },
+      // Sits before the kitchen deliberately: nothing reaches the kitchen
+      // until somebody has been through this screen with the guest.
+      { href: '/admin/pending', label: 'รอคอนเฟิร์ม', icon: ClipboardCheck, minRole: 'STAFF' },
       { href: '/admin/orders', label: 'ครัว / ออเดอร์', icon: ChefHat, minRole: 'STAFF' },
-      { href: '/admin/payments', label: 'ตรวจสลิป', icon: Wallet, minRole: 'STAFF' },
+      { href: '/admin/payments', label: 'อัปโหลดสลิป', icon: Wallet, minRole: 'STAFF' },
       { href: '/admin/sessions', label: 'เซสชัน', icon: Users, minRole: 'STAFF' },
     ],
   },
@@ -52,7 +56,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: '/admin/menu', label: 'เมนู', icon: UtensilsCrossed, minRole: 'MANAGER' },
       { href: '/admin/categories', label: 'หมวดหมู่', icon: Tags, minRole: 'MANAGER' },
       { href: '/admin/allergens', label: 'สารก่อภูมิแพ้', icon: TriangleAlert, minRole: 'MANAGER' },
-      { href: '/admin/tables', label: 'วิลล่า & QR', icon: QrCode, minRole: 'MANAGER' },
+      { href: '/admin/tables', label: 'วิลล่า', icon: Home, minRole: 'MANAGER' },
       { href: '/admin/reports', label: 'รายงาน', icon: BarChart3, minRole: 'MANAGER' },
     ],
   },

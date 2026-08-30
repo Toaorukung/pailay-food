@@ -57,9 +57,9 @@ export const HEADERS: Record<TabName, string[]> = {
   Allergens: ['id', 'name_th', 'name_en', 'name_zh', 'icon', 'is_active'],
   Tables: [
     'id', 'label', 'villa',
-    // The two halves of the printed link, /{slug}/{qr_code}. The slug is
-    // readable so a guest can see which villa they are ordering for; the code
-    // is random so the link cannot be guessed from the villa name alone.
+    // `slug` is the villa's own address segment, /{slug}/{sessionId}.
+    // `qr_code` is left in place for rows written while the printed-QR entry
+    // existed; nothing reads it any more.
     'slug', 'qr_code',
     'lat', 'lng', 'radius_m', 'is_active',
   ],
@@ -70,10 +70,16 @@ export const HEADERS: Record<TabName, string[]> = {
     // Appended, not slotted next to guest_name: a column inserted mid-list
     // would shift every value in every existing row of a live sheet.
     'guest_phone',
+    // The LINE account that opened the link, when the guest came in through
+    // the Official Account. Blank for an ordinary browser.
+    'line_user_id',
   ],
   Orders: [
     'order_id', 'session_id', 'table_id', 'created_at', 'status',
     'item_count', 'subtotal', 'service_charge', 'vat', 'total',
+    // Appended. Who released the ticket to the kitchen, and when — the
+    // question asked whenever a guest says nobody called them back.
+    'confirmed_at', 'confirmed_by',
   ],
   OrderItems: [
     'order_item_id', 'order_id', 'menu_id', 'name_snapshot',

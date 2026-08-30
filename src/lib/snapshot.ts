@@ -26,9 +26,9 @@ export interface SessionSnapshot {
   orders: Order[];
   /** Keyed by order id, so a card can show its own payment state. */
   payments: Record<string, PublicPayment>;
-  /** Settled and verified. */
+  /** Confirmed orders an admin has recorded a transfer slip against. */
   paidTotal: number;
-  /** Ordered but not yet confirmed as paid. */
+  /** Confirmed but not yet settled — what the villa still owes. */
   outstandingTotal: number;
   /**
    * Lines the kitchen still has to weigh. An order holding any of these cannot
@@ -59,6 +59,8 @@ export interface PublicSession {
   guestName: string;
   guestPhone: string;
   allergyProfile: string[];
+  /** Whether this session is bound to a LINE account that can be messaged. */
+  hasLine: boolean;
   geoStatus: GuestSession['geoStatus'];
   distanceM: number | null;
   locale: GuestSession['locale'];
@@ -85,6 +87,9 @@ export function publicSession(s: GuestSession): PublicSession {
     guestName: s.guestName,
     guestPhone: s.guestPhone,
     allergyProfile: s.allergyProfile,
+    // The id itself never leaves the server: it is the handle for messaging
+    // that person, and the page only needs to know whether one exists.
+    hasLine: Boolean(s.lineUserId),
     geoStatus: s.geoStatus,
     distanceM: s.distanceM,
     locale: s.locale,
@@ -121,6 +126,9 @@ export async function buildSnapshot(
     byOrder[payment.orderId] = publicPayment(payment);
   }
 
+  // Whether an order is settled lives on its payment, not on the order — the
+  // guest pays off the app and an admin records it afterwards.
+  const statusOf = (order: Order) => byOrder[order.id]?.status;
   const nowMinutes = bangkokMinutes();
 
   return {
@@ -129,8 +137,8 @@ export async function buildSnapshot(
     cartTotals: computeTotals(cart.lines, catalog.settings),
     orders,
     payments: byOrder,
-    paidTotal: paidTotal(orders),
-    outstandingTotal: outstandingTotal(orders),
+    paidTotal: paidTotal(orders, statusOf),
+    outstandingTotal: outstandingTotal(orders, statusOf),
     awaitingPricing: unpricedItems(orders),
     menuVersion: catalog.version,
     nowMinutes,

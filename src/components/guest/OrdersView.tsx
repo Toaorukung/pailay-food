@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import {
   ChefHat,
   CheckCircle2,
-  CreditCard,
+  ClipboardCheck,
   Hourglass,
   ReceiptText,
   Scale,
@@ -15,60 +14,59 @@ import {
 import { useI18n } from '@/i18n/provider';
 import { Badge, Button, Card, EmptyState } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
-import type { MenuCatalog, Order, OrderStatus } from '@/lib/types';
+import type { MenuCatalog, OrderStatus } from '@/lib/types';
 import type { SessionSnapshot } from '@/lib/snapshot';
-import { PaymentSheet } from './PaymentSheet';
 
 const STATUS_TONE: Record<
   OrderStatus,
   'neutral' | 'warning' | 'success' | 'danger' | 'brand'
 > = {
-  AWAITING_PRICING: 'brand',
-  UNPAID: 'danger',
-  AWAITING_PAYMENT: 'warning',
+  PENDING_CONFIRM: 'warning',
   NEW: 'neutral',
   COOKING: 'warning',
   SERVED: 'success',
   CANCELLED: 'danger',
+  // Retired states, still reachable on an order placed under the old flow.
+  AWAITING_PRICING: 'brand',
+  UNPAID: 'danger',
+  AWAITING_PAYMENT: 'warning',
 };
 
 const STATUS_ICON: Record<OrderStatus, typeof ChefHat> = {
-  AWAITING_PRICING: Scale,
-  UNPAID: CreditCard,
-  AWAITING_PAYMENT: Hourglass,
-  NEW: ReceiptText,
+  PENDING_CONFIRM: Hourglass,
+  NEW: ClipboardCheck,
   COOKING: ChefHat,
   SERVED: CheckCircle2,
   CANCELLED: XCircle,
+  AWAITING_PRICING: Scale,
+  UNPAID: ReceiptText,
+  AWAITING_PAYMENT: Hourglass,
 };
 
 /**
  * Every order the villa has placed, newest first.
  *
- * This is the working screen of the flow: an order sits here until it is paid,
- * then moves through the kitchen in the same card. The guest never loses sight
- * of what they ordered, and an unpaid order carries its own pay button rather
- * than sending everyone to a separate checkout at the end of the night.
+ * The working screen of the flow. An order lands here as "waiting for staff to
+ * confirm" and moves through the kitchen in the same card, so the guest never
+ * loses sight of what they asked for. There is no payment here at all — money
+ * is settled with staff directly, and this screen says so rather than offering
+ * a button that would go nowhere.
  */
 export function OrdersView({
   catalog,
   snapshot,
   canOrder,
   onBrowse,
-  onChanged,
 }: {
   catalog: MenuCatalog;
   snapshot: SessionSnapshot;
   canOrder: boolean;
   onBrowse: () => void;
-  onChanged: () => Promise<unknown>;
 }) {
   const { t, L, locale } = useI18n();
-  const [payingId, setPayingId] = useState<string | null>(null);
   const currency = catalog.settings.currency;
 
   const orders = [...snapshot.orders].reverse();
-  const paying: Order | null = orders.find((o) => o.id === payingId) ?? null;
 
   if (orders.length === 0) {
     return (
@@ -98,12 +96,7 @@ export function OrdersView({
 
       <div className="space-y-3 stagger">
         {orders.map((order) => {
-          const payment = snapshot.payments[order.id];
           const Icon = STATUS_ICON[order.status];
-          // A rejected slip hands the order back to the guest, so the pay
-          // button has to come back with it.
-          const needsPayment =
-            order.status === 'UNPAID' || payment?.status === 'REJECTED';
 
           return (
             <Card key={order.id} className="space-y-3">
@@ -163,36 +156,24 @@ export function OrdersView({
               <footer className="flex items-center justify-between gap-3 border-t border-[var(--line)] pt-2.5">
                 <span className="font-semibold">{t('cart.total')}</span>
                 <span className="text-lg font-bold tabular">
-                  {order.status === 'AWAITING_PRICING'
+                  {order.items.some((i) => i.priceOnRequest && !i.pricedAt)
                     ? '—'
                     : formatMoney(order.total, currency)}
                 </span>
               </footer>
 
-              {needsPayment && canOrder && (
-                <Button full size="lg" onClick={() => setPayingId(order.id)}>
-                  <CreditCard className="size-5" />
-                  {t('pay.now')} · {formatMoney(order.total, currency)}
-                </Button>
+              {order.status === 'PENDING_CONFIRM' && (
+                <p className="flex items-start gap-2 rounded-xl bg-[var(--warning-soft)] p-2.5 text-xs font-medium text-[var(--warning)]">
+                  <Hourglass className="mt-0.5 size-3.5 shrink-0" />
+                  {t('order.pendingHint')}
+                </p>
               )}
 
-              {order.status === 'AWAITING_PAYMENT' &&
-                payment?.status === 'PENDING_REVIEW' && (
-                  <p className="flex items-center justify-center gap-2 rounded-xl bg-[var(--warning-soft)] p-2.5 text-xs font-semibold text-[var(--warning)]">
-                    <Hourglass className="size-3.5" />
-                    {t('pay.waitingReview')}
-                  </p>
-                )}
-
-              {order.status === 'AWAITING_PRICING' && (
-                <button
-                  type="button"
-                  onClick={() => setPayingId(order.id)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-soft)] p-2.5 text-left text-xs font-medium text-[var(--brand-soft-text)]"
-                >
-                  <Scale className="size-3.5 shrink-0" />
-                  {t('pay.waitingPrice')}
-                </button>
+              {order.status === 'NEW' && (
+                <p className="flex items-start gap-2 rounded-xl bg-[var(--success-soft)] p-2.5 text-xs font-medium text-[var(--success)]">
+                  <ClipboardCheck className="mt-0.5 size-3.5 shrink-0" />
+                  {t('order.confirmedHint')}
+                </p>
               )}
             </Card>
           );
@@ -203,18 +184,6 @@ export function OrdersView({
         <Button variant="secondary" full onClick={onBrowse}>
           {t('orders.orderAgain')}
         </Button>
-      )}
-
-      {paying && (
-        <PaymentSheet
-          open
-          onOpenChange={(next) => !next && setPayingId(null)}
-          order={paying}
-          payment={snapshot.payments[paying.id]}
-          catalog={catalog}
-          sessionId={snapshot.session.id}
-          onChanged={onChanged}
-        />
       )}
     </div>
   );

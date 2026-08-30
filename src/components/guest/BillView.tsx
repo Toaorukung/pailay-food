@@ -4,7 +4,6 @@ import { ReceiptText, CheckCircle2, CircleDollarSign, Info } from 'lucide-react'
 import { useI18n } from '@/i18n/provider';
 import { Button, Card, EmptyState } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
-import { isPaid } from '@/lib/types';
 import type { MenuCatalog } from '@/lib/types';
 import type { SessionSnapshot } from '@/lib/snapshot';
 import { ClosedBanner } from './ClosedBanner';
@@ -12,9 +11,10 @@ import { ClosedBanner } from './ClosedBanner';
 /**
  * The villa's running bill for the whole stay.
  *
- * Payment happens per order, so this screen never asks for money — it is the
- * record. It is also what the guest is left with after staff end the session:
- * every order placed, what each one cost, and what has been settled.
+ * Never asks for money — that is settled with staff directly, and an admin
+ * records the transfer afterwards. This is the record: every order placed,
+ * what each one cost, and which ones the villa has already paid for. It is
+ * also what the guest is left with once staff end the session.
  */
 export function BillView({
   catalog,
@@ -123,15 +123,17 @@ export function BillView({
               <div className="flex justify-between gap-3 pt-0.5 text-sm font-semibold">
                 <span
                   className={
-                    isPaid(order.status)
+                    // Settled is a fact about the payment, not about the order:
+                    // the guest pays off the app and staff record it after.
+                    snapshot.payments[order.id]?.status === 'APPROVED'
                       ? 'text-[var(--success)]'
-                      : 'text-[var(--danger)]'
+                      : 'muted'
                   }
                 >
                   {t(`order.status.${order.status}` as const)}
                 </span>
                 <span className="tabular">
-                  {order.status === 'AWAITING_PRICING'
+                  {order.items.some((i) => i.priceOnRequest && !i.pricedAt)
                     ? '—'
                     : formatMoney(order.total, currency)}
                 </span>

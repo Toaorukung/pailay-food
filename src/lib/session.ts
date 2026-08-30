@@ -19,15 +19,16 @@ export const SESSION_COOKIE = 'pf_sess';
 /**
  * Session lifecycle.
  *
- * The printed QR is static per villa. Scanning it mints a fresh random session
- * id and redirects to /s/<id>. That session then lasts the whole stay: the
- * villa orders, pays, eats and orders again on the same link, with no need to
- * scan between rounds.
+ * A guest taps the villa's link in the LINE Official Account, reads the
+ * conditions, and picks which villa they are staying in. That choice mints a
+ * fresh random session id and lands them on /<villa-slug>/<sessionId>. The
+ * session then lasts the whole stay: the villa orders, eats and orders again
+ * on the same link.
  *
  * It ends when staff expire it from /admin/sessions. After that the id still
  * serves the villa's full order history — which is the reason it is kept —
- * but every mutating route refuses it, and the next scan of the sticker opens
- * a clean session for the next guest.
+ * but every mutating route refuses it, and the next guest to pick that villa
+ * gets a clean session.
  *
  * Two independent checks protect a session, and both are enforced server-side
  * on every mutation, not just when rendering a page:
@@ -118,13 +119,20 @@ async function saveSession(s: GuestSession): Promise<void> {
 }
 
 /**
- * Scanning the villa QR lands here. If that villa already has an open session,
- * we join it — a family with four phones shares one bill, which is what they
+ * Picking a villa lands here. If that villa already has an open session, we
+ * join it — a family with four phones shares one bill, which is what they
  * expect. Otherwise we mint a new one.
+ *
+ * `lineUserId` is the verified LINE account, or blank outside LINE. On a join
+ * it overwrites whatever was there: the session's copy exists so the *next*
+ * order knows who to message, and that is whoever most recently opened the
+ * link. Each order keeps its own snapshot, so an earlier guest's confirmation
+ * still goes to the earlier guest.
  */
 export async function createOrJoinSession(
   table: VillaTable,
   locale: Locale = DEFAULT_LOCALE,
+  lineUserId = '',
 ): Promise<GuestSession> {
   const existingId = await kv()
     .get<string>(K.tableOpenSession(table.id))
@@ -132,7 +140,12 @@ export async function createOrJoinSession(
 
   if (existingId) {
     const existing = await getSession(existingId);
-    if (existing && existing.status !== 'CLOSED') return existing;
+    if (existing && existing.status !== 'CLOSED') {
+      if (lineUserId && existing.lineUserId !== lineUserId) {
+        return (await updateSession(existing.id, { lineUserId })) ?? existing;
+      }
+      return existing;
+    }
     // Pointer outlived its session (expired key, manual close). Clear it.
     await kv().del(K.tableOpenSession(table.id)).catch(() => {});
   }
@@ -148,6 +161,7 @@ export async function createOrJoinSession(
     guestName: '',
     guestPhone: '',
     allergyProfile: [],
+    lineUserId,
     geoStatus: 'UNKNOWN',
     distanceM: null,
     locale,
@@ -226,6 +240,7 @@ function sessionRow(s: GuestSession): Record<string, unknown> {
     guest_name: s.guestName,
     guest_phone: s.guestPhone ?? '',
     allergy_profile: s.allergyProfile.join(','),
+    line_user_id: s.lineUserId ?? '',
     geo_status: s.geoStatus,
     distance_m: s.distanceM ?? '',
     locale: s.locale,
@@ -242,9 +257,9 @@ export type Guard =
 export type GuardFailure = 'NOT_FOUND' | 'CLOSED' | 'NOT_YOUR_SESSION';
 
 const MESSAGES: Record<GuardFailure, string> = {
-  NOT_FOUND: 'ไม่พบเซสชันนี้ กรุณาสแกน QR ในวิลล่าอีกครั้ง',
-  CLOSED: 'เซสชันนี้ปิดแล้ว หากต้องการสั่งอีกครั้ง กรุณาสแกน QR ในวิลล่าใหม่',
-  NOT_YOUR_SESSION: 'กรุณาสแกน QR ในวิลล่าเพื่อเริ่มสั่งอาหาร',
+  NOT_FOUND: 'ไม่พบเซสชันนี้ กรุณาเปิดลิงก์สั่งอาหารจาก LINE อีกครั้ง',
+  CLOSED: 'เซสชันนี้ปิดแล้ว หากต้องการสั่งอีกครั้ง กรุณาเปิดลิงก์จาก LINE ใหม่',
+  NOT_YOUR_SESSION: 'กรุณาเปิดลิงก์สั่งอาหารจาก LINE เพื่อเริ่มสั่ง',
 };
 
 /** The gate every mutating guest route must pass through. */

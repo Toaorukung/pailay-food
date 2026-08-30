@@ -30,8 +30,9 @@ import { ClosedBanner } from './ClosedBanner';
 type Tab = 'menu' | 'cart' | 'orders' | 'bill';
 
 /**
- * What a guest is walked through the first time they open the app: the
- * villa's notice, then who they are, then what they cannot eat.
+ * What a guest is walked through the first time they reach the menu: who they
+ * are, then what they cannot eat. The villa's conditions and the choice of
+ * villa happened earlier, on /order.
  */
 type FlowStep = WelcomeStep | 'allergy';
 
@@ -82,8 +83,7 @@ export function GuestApp({
   // price being set, or food being cooked.
   const awaitingStaff = snapshot.orders.some(
     (o) =>
-      o.status === 'AWAITING_PRICING' ||
-      o.status === 'AWAITING_PAYMENT' ||
+      o.status === 'PENDING_CONFIRM' ||
       o.status === 'NEW' ||
       o.status === 'COOKING',
   );
@@ -148,14 +148,13 @@ export function GuestApp({
   // Steps the villa has nothing to show for are dropped rather than rendered
   // empty, so the step counter always matches what the guest actually sees.
   const flowSteps = useMemo<FlowStep[]>(() => {
-    const steps: FlowStep[] = [];
-    if (catalog.settings.welcomeEnabled && catalog.settings.welcomeImage) {
-      steps.push('notice');
-    }
-    steps.push('details');
+    // The villa's conditions are no longer one of these. They are the first
+    // thing on /order, before the guest has even picked a villa, so repeating
+    // them here would be the same poster twice in thirty seconds.
+    const steps: FlowStep[] = ['details'];
     if (catalog.allergens.some((a) => a.isActive)) steps.push('allergy');
     return steps;
-  }, [catalog.allergens, catalog.settings.welcomeEnabled, catalog.settings.welcomeImage]);
+  }, [catalog.allergens]);
 
   // The phone number is what marks a session as introduced: it is the one
   // answer the flow insists on, so a session holding one has been through it.
@@ -177,9 +176,7 @@ export function GuestApp({
   const cartCount = snapshot.cart.lines.reduce((n, l) => n + l.qty, 0);
   const activeOrders = snapshot.orders.filter(
     (o) =>
-      o.status === 'UNPAID' ||
-      o.status === 'AWAITING_PRICING' ||
-      o.status === 'AWAITING_PAYMENT' ||
+      o.status === 'PENDING_CONFIRM' ||
       o.status === 'NEW' ||
       o.status === 'COOKING',
   ).length;
@@ -286,7 +283,6 @@ export function GuestApp({
             snapshot={snapshot}
             canOrder={canOrder}
             onBrowse={() => setTab('menu')}
-            onChanged={refresh}
           />
         )}
         {tab === 'bill' && (
@@ -364,7 +360,6 @@ export function GuestApp({
         onDetailsSaved={() =>
           setFlowStep(flowSteps.includes('allergy') ? 'allergy' : null)
         }
-        catalog={catalog}
         sessionId={sessionId}
         guestName={snapshot.session.guestName}
         guestPhone={snapshot.session.guestPhone}

@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { Printer, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { ContentManager, type FieldDef } from '@/components/admin/ContentManager';
 import { CopyButton } from '@/components/admin/CopyButton';
 import { PinCapture } from '@/components/admin/PinCapture';
@@ -14,7 +13,7 @@ import { Button, Card } from '@/components/ui';
  * it at click time keeps the markup identical on both sides of hydration.
  */
 function villaPath(row: Record<string, string>): string | null {
-  return row.slug && row.qr_code ? `/${row.slug}/${row.qr_code}` : null;
+  return row.slug ? `/order?villa=${encodeURIComponent(row.slug)}` : null;
 }
 
 /**
@@ -47,13 +46,7 @@ const FIELDS: FieldDef[] = [
     key: 'slug',
     label: 'ชื่อในลิงก์ (slug)',
     type: 'text',
-    hint: 'ส่วนแรกของลิงก์ QR เช่น villa-1 · ใช้ a-z 0-9 และ - เท่านั้น · ห้ามซ้ำกับวิลล่าอื่น',
-  },
-  {
-    key: 'qr_code',
-    label: 'รหัสในลิงก์',
-    type: 'text',
-    hint: 'ส่วนที่สองของลิงก์ เว้นว่างได้ ระบบจะสร้างให้เอง — เปลี่ยนแล้ว QR ที่พิมพ์ไปแล้วจะใช้ไม่ได้',
+    hint: 'ส่วนระบุวิลล่า เช่น villa-1 · ใช้ a-z 0-9 และ - เท่านั้น · ห้ามซ้ำกับวิลล่าอื่น',
   },
   { key: 'villa', label: 'ชื่อวิลล่า', type: 'text', hint: 'แสดงบนหัวหน้าจอลูกค้าและตั๋วครัว' },
   {
@@ -88,22 +81,15 @@ export default function TablesPage() {
         <div className="flex items-start gap-2 text-sm">
           <Info className="mt-0.5 size-4 shrink-0 muted" />
           <p className="muted">
-            ลิงก์ในQR คือ /ชื่อวิลล่า/รหัส · แขกที่สแกนขณะมีเซสชันเปิดอยู่จะเข้าบิลเดียวกัน
-            QR เป็นแบบถาวร พิมพ์ครั้งเดียวใช้ได้ตลอด —
-            แต่ละครั้งที่สแกนระบบจะสร้างเซสชันใหม่ให้เอง
+            ลูกค้าเข้าสู่หน้าสั่งอาหารผ่านลิงก์ <code>/order</code> ใน LINE Official Account
+            หรือสามารถกด &quot;คัดลอกลิงก์&quot; ในแต่ละวิลล่าเพื่อส่งลิงก์เฉพาะวิลล่าให้ลูกค้าได้โดยตรง
           </p>
         </div>
-        <Link href="/admin/qr-print" target="_blank">
-          <Button>
-            <Printer className="size-4" />
-            พิมพ์ QR ทุกวิลล่า
-          </Button>
-        </Link>
       </Card>
 
       <ContentManager
         endpoint="tables"
-        title="วิลล่า & QR Code"
+        title="วิลล่า"
         description="พิกัดใช้สำหรับเตือนเมื่อแขกอยู่นอกพื้นที่ — ไม่ได้บล็อกการสั่ง"
         fields={FIELDS}
         labelOf={(row) => row.label || row.villa || row.id}

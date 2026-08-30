@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { QrCode, Lock } from 'lucide-react';
+import { ReceiptText, Lock } from 'lucide-react';
 import { pageSessionState } from '@/lib/session';
 import { getTables } from '@/lib/tables';
 import { getCatalog } from '@/lib/menu-cache';
@@ -9,23 +9,22 @@ import { I18nProvider } from '@/i18n/provider';
 import { parseLocale, LOCALE_COOKIE } from '@/i18n/locale';
 import { translate } from '@/i18n/dict';
 import { GuestApp } from '@/components/guest/GuestApp';
-import { VillaEntry } from '@/components/guest/VillaEntry';
 import type { Locale } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * One route, two jobs: `/<villa>/<code>`.
+ * The ordering screen: `/<villa>/<sessionId>`.
  *
- * `code` is either the villa's printed QR code — in which case this is a fresh
- * scan and we hand off to the entry step — or a session id, in which case it
- * is the ordering screen. They cannot be confused for one another: the QR code
- * is matched exactly against the villa's own row, and anything that does not
- * match is treated as a session.
+ * Sessions are minted on /order, once the guest has read the conditions and
+ * said which villa they are in, and this is where they land afterwards.
  *
  * The villa segment is not decoration. A session is only served under the slug
  * of the villa it belongs to, so `/villa-2/<a-villa-1-session>` is a 404 rather
  * than one villa's bill displayed under another villa's name.
+ *
+ * A CLOSED session still renders — read-only — so the guest keeps the record
+ * of everything they ordered after staff end the stay.
  */
 export default async function VillaPage({
   params,
@@ -42,19 +41,13 @@ export default async function VillaPage({
   // Unknown villa: nothing here is worth distinguishing for a stranger.
   if (!table) notFound();
 
-  // A fresh scan. Hand off to the client so the cookie can be set by a route
-  // handler, then the URL is replaced with the session.
-  if (code === table.qrCode) {
-    return <VillaEntry villa={villa} code={code} />;
-  }
-
   const { session, isOwner } = await pageSessionState(code);
 
   if (!session) {
     return (
       <Notice
         locale={locale}
-        icon={<QrCode className="size-7" />}
+        icon={<ReceiptText className="size-7" />}
         titleKey="session.invalidTitle"
         bodyKey="session.invalidBody"
       />

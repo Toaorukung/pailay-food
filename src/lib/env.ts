@@ -82,6 +82,29 @@ export const env = {
   get googleClientSecret() {
     return read('AUTH_GOOGLE_SECRET');
   },
+  /**
+   * LINE. All three are optional: without them the app still runs, guests
+   * just arrive as anonymous browsers and get no confirmation message.
+   *   liffId              the LIFF app whose endpoint is /order
+   *   lineLoginChannelId  the LIFF's LINE Login channel — verifies id tokens
+   *   lineChannelToken    Messaging API channel access token — sends pushes
+   */
+  get liffId() {
+    return readOptional('NEXT_PUBLIC_LIFF_ID');
+  },
+  get lineLoginChannelId() {
+    return readOptional('LINE_LOGIN_CHANNEL_ID');
+  },
+  get lineChannelToken() {
+    return readOptional('LINE_CHANNEL_ACCESS_TOKEN');
+  },
+  /** Lark custom bot webhook. The secret is only set if the bot signs. */
+  get larkWebhookUrl() {
+    return readOptional('LARK_WEBHOOK_URL');
+  },
+  get larkWebhookSecret() {
+    return readOptional('LARK_WEBHOOK_SECRET');
+  },
   get isProduction() {
     return process.env.NODE_ENV === 'production';
   },

@@ -10,7 +10,7 @@ import {
   CloudUpload,
   MapPinOff,
   Scale,
-  CreditCard,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useLive } from './adminApi';
 import { SalesChart } from './SalesChart';
@@ -39,7 +39,7 @@ export function DashboardClient() {
   }
   if (!data) return null;
 
-  const { stats, sync, openSessions, orders, payments } = data;
+  const { stats, sync, openSessions, orders } = data;
   const flaggedSessions = openSessions.filter(
     (s) => s.geoStatus === 'OUTSIDE',
   );
@@ -97,24 +97,25 @@ export function DashboardClient() {
           tone={stats.activeOrders > 0 ? 'warning' : 'neutral'}
         />
         <Stat
+          icon={<ClipboardCheck className="size-5" />}
+          label="รอคอนเฟิร์ม"
+          value={String(stats.pendingConfirm)}
+          href="/admin/pending"
+          tone={stats.pendingConfirm > 0 ? 'danger' : 'neutral'}
+        />
+        <Stat
           icon={<Banknote className="size-5" />}
-          label="สลิปรอตรวจ"
-          value={String(stats.pendingPayments)}
+          label="รออัปโหลดสลิป"
+          value={String(stats.awaitingSlip)}
           href="/admin/payments"
-          tone={stats.pendingPayments > 0 ? 'danger' : 'neutral'}
+          tone={stats.awaitingSlip > 0 ? 'warning' : 'neutral'}
         />
         <Stat
           icon={<Scale className="size-5" />}
           label="รอชั่ง / แจ้งราคา"
           value={String(stats.awaitingPricing)}
-          href="/admin/orders"
+          href="/admin/pending"
           tone={stats.awaitingPricing > 0 ? 'warning' : 'neutral'}
-        />
-        <Stat
-          icon={<CreditCard className="size-5" />}
-          label="รอลูกค้าโอน"
-          value={String(stats.unpaidOrders)}
-          tone={stats.unpaidOrders > 0 ? 'warning' : 'neutral'}
         />
       </div>
 
@@ -271,16 +272,19 @@ export function DashboardClient() {
         </Card>
       </div>
 
-      {payments.length > 0 && (
+      {stats.pendingConfirm > 0 && (
         <Card className="space-y-2">
           <h2 className="font-semibold text-[var(--danger)]">
-            สลิปรอตรวจสอบ ({payments.length})
+            ออเดอร์รอคอนเฟิร์ม ({stats.pendingConfirm})
           </h2>
+          <p className="text-sm muted">
+            ลูกค้าสั่งเข้ามาแล้วแต่ยังไม่มีใครยืนยัน — ครัวจะยังไม่เห็นออเดอร์เหล่านี้
+          </p>
           <Link
-            href="/admin/payments"
+            href="/admin/pending"
             className="text-sm font-medium text-brand-600 hover:underline"
           >
-            ไปที่คิวตรวจสลิป
+            ไปที่หน้ารอคอนเฟิร์ม
           </Link>
         </Card>
       )}

@@ -183,6 +183,12 @@ export interface GuestSession {
   guestPhone: string;
   /** Allergen ids the guest declared. */
   allergyProfile: string[];
+  /**
+   * The LINE account that opened the link, verified from a LIFF id token.
+   * This is what the confirmation message is pushed to. Blank when the app was
+   * opened in an ordinary browser rather than inside LINE.
+   */
+  lineUserId: string;
   geoStatus: GeoStatus;
   distanceM: number | null;
   locale: Locale;
@@ -222,28 +228,44 @@ export interface Cart {
 /**
  * An order's life, in order.
  *
- * Everything up to and including AWAITING_PAYMENT is invisible to the kitchen:
- * nothing is cooked until the money is in and a member of staff has said so.
- * NEW is therefore "paid, verified, start cooking", not "just arrived".
+ * Nothing is cooked until a member of staff has looked at the ticket. A guest
+ * confirming their cart raises the order as PENDING_CONFIRM, which is the
+ * queue on /admin/pending: staff ring the villa, adjust or price lines, and
+ * only then confirm. Confirming is what puts it on the kitchen board and what
+ * sends the guest their confirmation on LINE.
+ *
+ * Money is settled off the app — the guest transfers or pays reception — and
+ * an admin uploads the slip afterwards from /admin/payments. So payment state
+ * lives entirely on the Payment record and never gates the kitchen.
  */
 export type OrderStatus =
-  /** Contains dishes sold by weight; staff must price it before it can be paid. */
-  | 'AWAITING_PRICING'
-  /** Total is known. Waiting for the guest to transfer and upload a slip. */
-  | 'UNPAID'
-  /** Slip uploaded. Waiting for staff to check it against the amount. */
-  | 'AWAITING_PAYMENT'
-  /** Paid and verified. This is when it reaches the kitchen display. */
+  /** Placed by the guest. Waiting for staff to check it and confirm. */
+  | 'PENDING_CONFIRM'
+  /** Confirmed by staff. This is when it reaches the kitchen display. */
   | 'NEW'
   | 'COOKING'
   | 'SERVED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  /**
+   * Retired statuses, kept so orders written under the old pay-first flow
+   * still deserialise and render for their 30 days of retention. Nothing
+   * produces them any more.
+   */
+  | 'AWAITING_PRICING'
+  | 'UNPAID'
+  | 'AWAITING_PAYMENT';
 
-/** Statuses the kitchen acts on. Anything else is still a billing matter. */
+/** Statuses the kitchen acts on. Anything else is still a front-of-house matter. */
 export const KITCHEN_STATUSES: OrderStatus[] = ['NEW', 'COOKING', 'SERVED'];
 
-/** Paid for, so it counts towards revenue and the session's history. */
-export function isPaid(status: OrderStatus): boolean {
+/**
+ * Staff have confirmed this ticket, so the kitchen is allowed to see it.
+ *
+ * Deliberately not "paid": under the current flow the money arrives outside
+ * the app and the slip is uploaded later, so waiting for payment before
+ * cooking would leave every order sitting cold.
+ */
+export function isConfirmed(status: OrderStatus): boolean {
   return status === 'NEW' || status === 'COOKING' || status === 'SERVED';
 }
 
@@ -279,6 +301,17 @@ export interface Order {
   total: number;
   /** The payment raised for this order when the guest confirmed it. */
   paymentId: string;
+  /**
+   * Who to message on LINE about this ticket, snapshotted off the session.
+   * Kept per order rather than read back off the session at confirm time: a
+   * villa can have several people ordering on one bill, and the confirmation
+   * belongs to whoever actually sent the order. Blank when the guest opened
+   * the link outside LINE.
+   */
+  lineUserId: string;
+  /** Set when staff confirmed the ticket into the kitchen. */
+  confirmedAt: string | null;
+  confirmedBy: string | null;
   /** Allergen ids, snapshotted off the session at order time. */
   allergyProfile: string[];
   /**
@@ -291,6 +324,15 @@ export interface Order {
   locale: Locale;
 }
 
+/**
+ * PENDING is "confirmed, money not recorded yet" — the row an admin sees on
+ * /admin/payments waiting for a slip. APPROVED means an admin has uploaded the
+ * transfer slip against it, which is what counts the order as revenue.
+ *
+ * PENDING_REVIEW and REJECTED belonged to the old flow, where the guest
+ * uploaded their own slip and staff checked it. Kept so historic payments
+ * still deserialise.
+ */
 export type PaymentStatus =
   | 'PENDING'
   | 'PENDING_REVIEW'
@@ -309,6 +351,7 @@ export interface Payment {
   status: PaymentStatus;
   slipUrl: string | null;
   slipUploadedAt: string | null;
+  /** The admin who uploaded the slip. */
   verifiedBy: string | null;
   verifiedAt: string | null;
   rejectReason: string | null;

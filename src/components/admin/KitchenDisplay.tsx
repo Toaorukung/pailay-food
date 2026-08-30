@@ -13,10 +13,10 @@ import {
   X,
 } from 'lucide-react';
 import { useLive, useOrderChime, adminFetch } from './adminApi';
-import { Badge, Button, Card, Input, Skeleton, cn } from '@/components/ui';
+import { Badge, Button, Card, Skeleton, cn } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
-import type { Order, OrderItem, OrderStatus } from '@/lib/types';
-import { isPaid } from '@/lib/types';
+import type { Order, OrderStatus } from '@/lib/types';
+import { isConfirmed } from '@/lib/types';
 
 const COLUMNS: { status: OrderStatus; label: string; tone: string }[] = [
   { status: 'NEW', label: 'ใหม่', tone: 'border-[var(--danger)]' },
@@ -31,24 +31,14 @@ export function KitchenDisplay() {
 
 
   const orders = data?.orders ?? [];
-  // Staff have to weigh these before the guest can pay, so they sit above the
-  // board rather than inside it — nobody should start cooking them yet.
-  const awaitingPricing = orders.filter((o) => o.status === 'AWAITING_PRICING');
 
-  // Unpaid orders never reach the board, so chiming for them would ring at the
-  // wrong moment — only a newly paid ticket is news to the kitchen.
-  const payableNew = newOrderIds.filter((id) =>
+  // Pending tickets never reach the board, so chiming for them here would ring
+  // at the wrong moment — the confirm queue owns that alert. Only a ticket
+  // staff have just released is news to the kitchen.
+  const confirmedNew = newOrderIds.filter((id) =>
     orders.some((o) => o.id === id && o.status === 'NEW'),
   );
-  useOrderChime(sound, payableNew);
-
-  async function reprice(orderId: string, itemId: string, unitPrice: number) {
-    await adminFetch('/api/admin/orders', {
-      method: 'PATCH',
-      body: JSON.stringify({ orderId, itemId, unitPrice }),
-    });
-    await refresh();
-  }
+  useOrderChime(sound, confirmedNew);
 
   async function move(order: Order, status: OrderStatus) {
     setBusy(order.id);
@@ -86,34 +76,10 @@ export function KitchenDisplay() {
         </Button>
       </header>
 
-      {awaitingPricing.length > 0 && (
-        <section className="space-y-3 rounded-2xl border border-[var(--brand)] bg-[var(--brand-soft)] p-4">
-          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--brand-soft-text)]">
-            <Scale className="size-4" />
-            รอชั่งน้ำหนักและแจ้งราคา ({awaitingPricing.length})
-          </h2>
-          <p className="text-xs text-[var(--brand-soft-text)]">
-            แขกยังชำระเงินไม่ได้จนกว่าจะใส่ราคาครบ และครัวจะยังไม่เห็นออเดอร์นี้
-          </p>
-          <div className="grid gap-3 lg:grid-cols-3">
-            {awaitingPricing.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                tone="border-[var(--brand)]"
-                isNew={false}
-                busy={busy === order.id}
-                onReprice={reprice}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
       <div className="grid gap-4 lg:grid-cols-3">
         {COLUMNS.map((column) => {
           const columnOrders = orders
-            .filter((o) => isPaid(o.status) && o.status === column.status)
+            .filter((o) => isConfirmed(o.status) && o.status === column.status)
             // Oldest first in the working columns: the kitchen serves a queue,
             // not a stack. Served orders read better newest-first.
             .sort((a, b) =>
@@ -144,7 +110,6 @@ export function KitchenDisplay() {
                   tone={column.tone}
                   isNew={newOrderIds.includes(order.id)}
                   busy={busy === order.id}
-                  onReprice={reprice}
                   onAdvance={
                     column.status === 'NEW'
                       ? () => move(order, 'COOKING')
@@ -172,7 +137,6 @@ function OrderCard({
   tone,
   isNew,
   busy,
-  onReprice,
   onAdvance,
   onCancel,
 }: {
@@ -180,7 +144,6 @@ function OrderCard({
   tone: string;
   isNew: boolean;
   busy: boolean;
-  onReprice: (orderId: string, itemId: string, unitPrice: number) => Promise<void>;
   onAdvance?: () => void;
   onCancel?: () => void;
 }) {
@@ -259,11 +222,12 @@ function OrderCard({
                 <span className="whitespace-pre-wrap break-words">{item.note}</span>
               </p>
             )}
-            {item.priceOnRequest && (
-              <PriceEntry
-                item={item}
-                onSave={(unitPrice) => onReprice(order.id, item.id, unitPrice)}
-              />
+            {item.priceOnRequest && item.pricedAt && (
+              <p className="ml-6 mt-1 flex items-center gap-1.5 text-xs muted">
+                <Scale className="size-3" />
+                ชั่งแล้ว {formatMoney(item.unitPrice)}/หน่วย · โดย{' '}
+                {item.pricedBy ?? '—'}
+              </p>
             )}
             {item.allergenAck && (
               <p className="ml-6 mt-1 flex items-center gap-1 text-xs font-semibold text-[var(--danger)]">
@@ -304,76 +268,5 @@ function OrderCard({
         )}
       </footer>
     </Card>
-  );
-}
-
-/**
- * Weighed-price entry, inline on the kitchen ticket.
- *
- * It lives here rather than on a separate admin screen because this is the
- * moment the information exists: the cook has the fish on the scale and the
- * ticket in front of them. The guest cannot check out until every one of these
- * is filled in, so a forgotten line is visible rather than silently free.
- */
-function PriceEntry({
-  item,
-  onSave,
-}: {
-  item: OrderItem;
-  onSave: (unitPrice: number) => Promise<void>;
-}) {
-  const [value, setValue] = useState(
-    item.pricedAt ? String(item.unitPrice) : '',
-  );
-  const [saving, setSaving] = useState(false);
-
-  const parsed = Number(value);
-  const valid = value.trim() !== '' && Number.isFinite(parsed) && parsed >= 0;
-
-  async function submit() {
-    if (!valid) return;
-    setSaving(true);
-    await onSave(parsed);
-    setSaving(false);
-  }
-
-  return (
-    <div
-      className={cn(
-        'ml-6 mt-1.5 space-y-1.5 rounded-lg p-2',
-        item.pricedAt ? 'bg-[var(--success-soft)]' : 'bg-[var(--brand-soft)]',
-      )}
-    >
-      <p className="flex items-center gap-1.5 text-xs font-semibold">
-        <Scale className="size-3" />
-        {item.pricedAt
-          ? `ราคาต่อหน่วย ${formatMoney(item.unitPrice)} · โดย ${item.pricedBy ?? '—'}`
-          : 'ชั่งน้ำหนักแล้วใส่ราคาต่อหน่วย'}
-      </p>
-      <div className="flex gap-1.5">
-        <Input
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="1"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submit();
-          }}
-          placeholder="ราคา/หน่วย"
-          className="h-9 text-sm"
-          aria-label={`ราคาต่อหน่วยของ ${item.name.th || item.name.en}`}
-        />
-        <Button size="sm" loading={saving} disabled={!valid} onClick={submit}>
-          บันทึก
-        </Button>
-      </div>
-      {valid && item.qty > 1 && (
-        <p className="text-xs muted">
-          × {item.qty} = {formatMoney(parsed * item.qty)}
-        </p>
-      )}
-    </div>
   );
 }
