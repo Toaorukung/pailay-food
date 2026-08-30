@@ -26,3 +26,4 @@ next-env.d.ts
 .vercel
 .env*.local
 node.html
+run-test.ps1
