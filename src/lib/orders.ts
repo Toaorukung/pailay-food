@@ -1,6 +1,6 @@
 import { kv, K } from './kv';
 import { orderId as newOrderId, paymentId as newPaymentId } from './ids';
-import { computeTotals } from './pricing';
+import { computeTotals, resolveLine } from './pricing';
 import { round2 } from './money';
 import { clearCart, revalidateCart } from './cart';
 import {
@@ -406,7 +406,7 @@ export async function cancelOrder(
  * compounding the mistake — and so a repriced order and an ordinary one are
  * totalled by exactly the same code.
  */
-function retotal(
+export function retotal(
   order: Order,
   items: OrderItem[],
   settings: MenuCatalog['settings'],
@@ -477,6 +477,115 @@ export async function updateOrderItems(
   }
 
   const next = retotal(order, items, settings);
+  await saveOrder(next);
+
+  const { updatePaymentAmount } = await import('./payments');
+  await updatePaymentAmount(next.paymentId, next.total);
+
+  return { ok: true, order: next };
+}
+
+export interface ReplaceOrderItemInput {
+  orderId: string;
+  itemId: string;
+  menuId: string;
+  qty: number;
+  optionIds?: string[];
+  note?: string;
+}
+
+/**
+ * Staff replace a dish on a pending ticket with another menu item — e.g. when
+ * an item is sold out or the guest requests a swap over the phone.
+ */
+export async function replaceOrderItem(
+  input: ReplaceOrderItemInput,
+  catalog: MenuCatalog,
+): Promise<{ ok: true; order: Order } | { ok: false; error: string }> {
+  const order = await getOrder(input.orderId);
+  if (!order) return { ok: false, error: 'ไม่พบออเดอร์' };
+  if (order.status !== 'PENDING_CONFIRM') {
+    return { ok: false, error: 'แก้ไขได้เฉพาะออเดอร์ที่ยังรอคอนเฟิร์มเท่านั้น' };
+  }
+
+  const existingIdx = order.items.findIndex((i) => i.id === input.itemId);
+  if (existingIdx === -1) {
+    return { ok: false, error: 'ไม่พบรายการที่ต้องการเปลี่ยน' };
+  }
+
+  const resolved = resolveLine(catalog, input.menuId, input.optionIds ?? []);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+
+  const qty = Math.max(1, input.qty);
+  const newItem: OrderItem = {
+    id: `${order.id}-${Date.now().toString(36).slice(-4)}`,
+    menuId: resolved.item.id,
+    name: resolved.item.name,
+    qty,
+    unitPrice: resolved.unitPrice,
+    lineTotal: round2(resolved.unitPrice * qty),
+    options: resolved.options,
+    note: (input.note ?? '').trim().slice(0, 500),
+    allergenAck: true,
+    priceOnRequest: resolved.item.priceOnRequest,
+    pricedAt: null,
+    pricedBy: null,
+  };
+
+  const items = [...order.items];
+  items[existingIdx] = newItem;
+
+  const next = retotal(order, items, catalog.settings);
+  await saveOrder(next);
+
+  const { updatePaymentAmount } = await import('./payments');
+  await updatePaymentAmount(next.paymentId, next.total);
+
+  return { ok: true, order: next };
+}
+
+export interface AddOrderItemInput {
+  orderId: string;
+  menuId: string;
+  qty: number;
+  optionIds?: string[];
+  note?: string;
+}
+
+/**
+ * Staff add an extra dish to a pending ticket upon guest request during confirmation.
+ */
+export async function addOrderItem(
+  input: AddOrderItemInput,
+  catalog: MenuCatalog,
+): Promise<{ ok: true; order: Order } | { ok: false; error: string }> {
+  const order = await getOrder(input.orderId);
+  if (!order) return { ok: false, error: 'ไม่พบออเดอร์' };
+  if (order.status !== 'PENDING_CONFIRM') {
+    return { ok: false, error: 'เพิ่มรายการได้เฉพาะออเดอร์ที่ยังรอคอนเฟิร์มเท่านั้น' };
+  }
+
+  const resolved = resolveLine(catalog, input.menuId, input.optionIds ?? []);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+
+  const qty = Math.max(1, input.qty);
+  const newItem: OrderItem = {
+    id: `${order.id}-${Date.now().toString(36).slice(-4)}`,
+    menuId: resolved.item.id,
+    name: resolved.item.name,
+    qty,
+    unitPrice: resolved.unitPrice,
+    lineTotal: round2(resolved.unitPrice * qty),
+    options: resolved.options,
+    note: (input.note ?? '').trim().slice(0, 500),
+    allergenAck: true,
+    priceOnRequest: resolved.item.priceOnRequest,
+    pricedAt: null,
+    pricedBy: null,
+  };
+
+  const items = [...order.items, newItem];
+  const next = retotal(order, items, catalog.settings);
   await saveOrder(next);
 
   const { updatePaymentAmount } = await import('./payments');

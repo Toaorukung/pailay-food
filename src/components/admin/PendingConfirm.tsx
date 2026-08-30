@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
+  ArrowLeftRight,
   Check,
   ClipboardCheck,
   Hourglass,
@@ -18,9 +19,10 @@ import {
   X,
 } from 'lucide-react';
 import { useLive, useOrderChime, adminFetch } from './adminApi';
+import { MenuItemModal } from './MenuItemModal';
 import { Badge, Button, Card, EmptyState, Input, Skeleton } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
-import type { Order, OrderItem } from '@/lib/types';
+import type { MenuCatalog, Order, OrderItem } from '@/lib/types';
 
 /**
  * The confirm queue — the step the whole flow now turns on.
@@ -35,11 +37,25 @@ import type { Order, OrderItem } from '@/lib/types';
  * The guest's phone number is at the top of every card rather than buried in
  * the session list, because ringing it is the first thing this screen is for.
  */
-export function PendingConfirm() {
+export function PendingConfirm({ catalog: initialCatalog }: { catalog?: MenuCatalog } = {}) {
+  const [catalog, setCatalog] = useState<MenuCatalog | null>(initialCatalog ?? null);
   const { data, loading, refresh, newOrderIds, clearNew } = useLive();
   const [sound, setSound] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [menuModal, setMenuModal] = useState<{
+    mode: 'replace' | 'add';
+    order: Order;
+    item?: OrderItem;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!catalog) {
+      adminFetch<MenuCatalog>('/api/menu').then((res) => {
+        if (res.ok) setCatalog(res.data);
+      });
+    }
+  }, [catalog]);
 
   const orders = (data?.orders ?? [])
     .filter((o) => o.status === 'PENDING_CONFIRM')
@@ -103,6 +119,49 @@ export function PendingConfirm() {
     await refresh();
   }
 
+  async function handleSaveItem(data: {
+    menuId: string;
+    qty: number;
+    optionIds: string[];
+    note: string;
+  }) {
+    if (!menuModal) return;
+    setBusy(menuModal.order.id);
+    setError(null);
+
+    const action = menuModal.mode === 'replace' ? 'replace-item' : 'add-item';
+    const payload =
+      menuModal.mode === 'replace'
+        ? {
+            orderId: menuModal.order.id,
+            itemId: menuModal.item!.id,
+            menuId: data.menuId,
+            qty: data.qty,
+            optionIds: data.optionIds,
+            note: data.note,
+          }
+        : {
+            orderId: menuModal.order.id,
+            menuId: data.menuId,
+            qty: data.qty,
+            optionIds: data.optionIds,
+            note: data.note,
+          };
+
+    const res = await adminFetch(`/api/admin/orders?action=${action}`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    setBusy(null);
+    if (!res.ok) {
+      setError(res.error);
+    } else {
+      setMenuModal(null);
+    }
+    await refresh();
+  }
+
   if (loading && !data) return <Skeleton className="h-64" />;
 
   return (
@@ -149,11 +208,28 @@ export function PendingConfirm() {
               isNew={pendingNew.includes(order.id)}
               onSetQty={(item, qty) => setQty(order, item, qty)}
               onReprice={(item, price) => reprice(order, item, price)}
+              onReplaceItem={(item) => setMenuModal({ mode: 'replace', order, item })}
+              onAddItem={() => setMenuModal({ mode: 'add', order })}
               onConfirm={() => act(order, 'confirm')}
               onCancel={() => act(order, 'cancel')}
             />
           ))}
         </div>
+      )}
+
+      {menuModal && catalog && (
+        <MenuItemModal
+          open={Boolean(menuModal)}
+          onOpenChange={(open) => {
+            if (!open) setMenuModal(null);
+          }}
+          mode={menuModal.mode}
+          order={menuModal.order}
+          targetItem={menuModal.item}
+          catalog={catalog}
+          onSave={handleSaveItem}
+          busy={busy === menuModal.order.id}
+        />
       )}
     </div>
   );
@@ -168,6 +244,8 @@ function PendingCard({
   isNew,
   onSetQty,
   onReprice,
+  onReplaceItem,
+  onAddItem,
   onConfirm,
   onCancel,
 }: {
@@ -177,6 +255,8 @@ function PendingCard({
   isNew: boolean;
   onSetQty: (item: OrderItem, qty: number) => void;
   onReprice: (item: OrderItem, unitPrice: number) => void;
+  onReplaceItem: (item: OrderItem) => void;
+  onAddItem: () => void;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -286,6 +366,18 @@ function PendingCard({
                   <Plus className="size-4" />
                 </Button>
 
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => onReplaceItem(item)}
+                  className="gap-1 text-xs"
+                  title="เปลี่ยนเป็นเมนูอื่น"
+                >
+                  <ArrowLeftRight className="size-3.5" />
+                  เปลี่ยนเมนู
+                </Button>
+
                 <button
                   type="button"
                   disabled={busy}
@@ -315,6 +407,19 @@ function PendingCard({
             </li>
           ))}
         </ul>
+
+        <div className="pt-1">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={busy}
+            onClick={onAddItem}
+            className="gap-1.5 text-xs"
+          >
+            <Plus className="size-3.5" />
+            เพิ่มเมนู
+          </Button>
+        </div>
 
         <footer className="space-y-3 border-t border-[var(--line)] pt-3">
           <div className="flex items-baseline justify-between">

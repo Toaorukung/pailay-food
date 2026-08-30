@@ -3,6 +3,8 @@ import {
   cancelOrder,
   confirmOrder,
   repriceOrderItem,
+  replaceOrderItem,
+  addOrderItem,
   setOrderStatus,
   updateOrderItems,
 } from '@/lib/orders';
@@ -10,6 +12,8 @@ import { getCatalog } from '@/lib/menu-cache';
 import { pushOrderConfirmed } from '@/lib/line';
 import {
   editOrderItemsSchema,
+  replaceOrderItemSchema,
+  addOrderItemSchema,
   orderIdSchema,
   orderStatusSchema,
   repriceSchema,
@@ -69,6 +73,44 @@ export const POST = handler(async (req: Request) => {
 
     await audit(auth.admin, 'order.cancel', order.id, {}, clientIp(req));
     return ok({ order });
+  }
+
+  if (action === 'replace-item') {
+    const body = await parseBody(req, replaceOrderItemSchema);
+    if (!body.ok) return fail(body.error);
+
+    const catalog = await getCatalog();
+    const result = await replaceOrderItem(body.data, catalog);
+    if (!result.ok) return fail(result.error, 409);
+
+    await audit(
+      auth.admin,
+      'order.replaceItem',
+      `${body.data.orderId}/${body.data.itemId}`,
+      { newMenuId: body.data.menuId, orderTotal: result.order.total },
+      clientIp(req),
+    );
+
+    return ok({ order: result.order });
+  }
+
+  if (action === 'add-item') {
+    const body = await parseBody(req, addOrderItemSchema);
+    if (!body.ok) return fail(body.error);
+
+    const catalog = await getCatalog();
+    const result = await addOrderItem(body.data, catalog);
+    if (!result.ok) return fail(result.error, 409);
+
+    await audit(
+      auth.admin,
+      'order.addItem',
+      body.data.orderId,
+      { menuId: body.data.menuId, orderTotal: result.order.total },
+      clientIp(req),
+    );
+
+    return ok({ order: result.order });
   }
 
   const body = await parseBody(req, orderStatusSchema);

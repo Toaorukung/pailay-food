@@ -116,3 +116,41 @@ describe('order settlement logic', () => {
     expect(outstandingTotal([order1, order2, order3], statusOf)).toBe(500);
   });
 });
+
+describe('order item modification and retotaling', () => {
+  it('recalculates order total when item is changed', async () => {
+    const { retotal } = await import('@/lib/orders');
+    const replacementItem = {
+      ...sampleOrder.items[0],
+      unitPrice: 200,
+      qty: 3,
+      lineTotal: 600,
+    };
+    const updated = retotal(sampleOrder, [replacementItem], dummySettings);
+    expect(updated.subtotal).toBe(600);
+    expect(updated.total).toBe(600);
+  });
+
+  it('recalculates order total when item is added', async () => {
+    const { retotal } = await import('@/lib/orders');
+    const extraItem = {
+      id: 'i-2',
+      menuId: 'm-soup',
+      name: loc('ต้มยำกุ้ง', 'Tom Yum Goong', '冬阴功汤'),
+      unitPrice: 250,
+      qty: 1,
+      lineTotal: 250,
+      options: [],
+      note: '',
+      allergenAck: true,
+      priceOnRequest: false,
+      pricedAt: null,
+      pricedBy: null,
+    };
+    const updated = retotal(sampleOrder, [...sampleOrder.items, extraItem], dummySettings);
+    expect(updated.subtotal).toBe(550);
+    expect(updated.total).toBe(550);
+    expect(updated.items.length).toBe(2);
+  });
+});
+

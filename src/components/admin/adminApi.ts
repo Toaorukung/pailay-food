@@ -101,9 +101,16 @@ export function useLive(pollMs = LIVE_POLL_MS) {
  */
 export function useOrderChime(enabled: boolean, trigger: string[]) {
   const contextRef = useRef<AudioContext | null>(null);
+  const playedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!enabled || trigger.length === 0) return;
+
+    // Only chime for IDs that have not already chimed in this session
+    const unplayed = trigger.filter((id) => !playedIdsRef.current.has(id));
+    if (unplayed.length === 0) return;
+
+    unplayed.forEach((id) => playedIdsRef.current.add(id));
 
     try {
       const Ctor =

@@ -117,6 +117,23 @@ export const editOrderItemsSchema = z.object({
     .max(60),
 });
 
+export const replaceOrderItemSchema = z.object({
+  orderId: z.string().min(1).max(64),
+  itemId: z.string().min(1).max(64),
+  menuId: z.string().min(1).max(64),
+  qty: z.number().int().min(1).max(99).default(1),
+  optionIds: z.array(z.string().min(1).max(64)).default([]),
+  note: z.string().max(500).default(''),
+});
+
+export const addOrderItemSchema = z.object({
+  orderId: z.string().min(1).max(64),
+  menuId: z.string().min(1).max(64),
+  qty: z.number().int().min(1).max(99).default(1),
+  optionIds: z.array(z.string().min(1).max(64)).default([]),
+  note: z.string().max(500).default(''),
+});
+
 export const orderStatusSchema = z.object({
   orderId: z.string().min(1).max(64),
   // PENDING_CONFIRM is deliberately absent: a ticket only leaves the confirm
