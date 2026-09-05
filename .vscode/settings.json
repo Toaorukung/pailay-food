@@ -1,0 +1,6 @@
+{
+  "git.autofetch": false,
+  "git.autorefresh": true,
+  "git.untrackedChanges": "separate",
+  "git.ignoreSubmodules": true
+}
