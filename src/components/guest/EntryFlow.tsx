@@ -52,9 +52,15 @@ export function EntryFlow({
   const { t, locale, setLocale } = useI18n();
   const idToken = useLiffIdToken(liffId);
 
+  // welcomeEnabled is the villa's answer; the content check is what keeps an
+  // empty step from being rendered by a villa that switched it on and has not
+  // filled anything in yet. The fallback artwork counts, since that is what the
+  // notice below actually falls back to.
   const showNotice =
-    Boolean(catalog.settings.welcomeImage) ||
-    Boolean(catalog.settings.serviceNotice.th.trim());
+    catalog.settings.welcomeEnabled &&
+    (Boolean(catalog.settings.welcomeImage) ||
+      Boolean(catalog.settings.serviceNoticeImage) ||
+      Boolean(catalog.settings.serviceNotice.th.trim()));
 
   const matchedVilla = villas.find((v) => v.slug === defaultVilla);
   const [step, setStep] = useState<Step>(showNotice ? 'notice' : 'villa');
