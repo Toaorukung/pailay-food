@@ -1174,9 +1174,9 @@ export const ITEMS: SeedItem[] = [
   {
     id: 'm-bf-congee-set', cat: 'c-breakfast', order: 10,
     th: 'ข้าวต้มทรงเครื่อง (สำหรับ 16 ท่าน)', en: 'Rice soup set for 16', zh: '什锦粥（16 人份）',
-    descTh: 'สั่งล่วงหน้าไม่เกิน 17:00 น. ของวันก่อนจัดส่ง · ขั้นต่ำ 16 ท่าน · ส่งถึงไม่เกิน 08:30 น. · ชำระเงินก่อนเพื่อยืนยันออเดอร์ · ต้องการจำนวนอื่น ติดต่อแอดมินโดยตรง',
-    descEn: 'Order by 17:00 the day before. Minimum 16 guests. Delivered by 08:30. Payment upfront confirms the order; for other quantities, contact the admin directly.',
-    descZh: '需于前一天 17:00 前预订，最少 16 位，08:30 前送达。需先付款以确认订单；如需其他数量，请直接联系管理员。',
+    descTh: 'สั่งล่วงหน้าไม่เกิน 17:00 น. ของวันก่อนจัดส่ง · ขั้นต่ำ 16 ท่าน · ส่งถึงไม่เกิน 07:30 น. · ชำระเงินก่อนเพื่อยืนยันออเดอร์ · ต้องการจำนวนอื่น ติดต่อแอดมินโดยตรง',
+    descEn: 'Order by 17:00 the day before. Minimum 16 guests. Delivered by 07:30. Payment upfront confirms the order; for other quantities, contact the admin directly.',
+    descZh: '需于前一天 17:00 前预订，最少 16 位，07:30 前送达。需先付款以确认订单；如需其他数量，请直接联系管理员。',
     ingTh: 'ข้าวสวย, ขึ้นฉ่าย, กระเทียมเจียว, ขิง, น้ำปลา',
     ingEn: 'rice, celery, fried garlic, ginger, fish sauce', ingZh: '米饭、芹菜、炸蒜、姜、鱼露',
     price: 1000, allergens: [NAMPLA], may: KITCHEN_CROSS,
