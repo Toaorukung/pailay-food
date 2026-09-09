@@ -12,33 +12,49 @@ import { audit } from '@/lib/audit';
 import { clientIp } from '@/lib/ratelimit';
 import { shortCode } from '@/lib/ids';
 import { handler, fail, ok } from '@/lib/api';
+import {
+  DEFAULT_ROLE_PERMISSIONS,
+  type AdminRole,
+  type PermissionId,
+} from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export const GET = handler(async (req: Request) => {
-  const auth = await requireAdmin(req, 'OWNER');
+  const auth = await requireAdmin(req, 'OWNER', 'users');
   if (!auth.ok) return auth.response;
 
   const rows = await listRows(TABS.AdminUsers);
   const users = rows
     .filter((r) => r.id)
-    .map((r) => ({
-      id: r.id,
-      email: r.email || '',
-      username: r.username || '',
-      name: r.name || r.username || r.email || '',
-      role: r.role || 'STAFF',
-      isActive: r.is_active === 'TRUE' || r.is_active === 'true',
-      hasPassword: Boolean(r.password_hash && r.password_hash.trim().length > 0),
-      createdAt: r.created_at || '',
-    }));
+    .map((r) => {
+      const role = (['OWNER', 'MANAGER', 'STAFF'].includes(r.role)
+        ? r.role
+        : 'STAFF') as AdminRole;
+      const rawPerms = (r.permissions || '').trim();
+      const perms = rawPerms
+        ? (rawPerms.split(',').map((p) => p.trim()).filter(Boolean) as PermissionId[])
+        : DEFAULT_ROLE_PERMISSIONS[role] ?? [];
+
+      return {
+        id: r.id,
+        email: r.email || '',
+        username: r.username || '',
+        name: r.name || r.username || r.email || '',
+        role,
+        isActive: r.is_active === 'TRUE' || r.is_active === 'true',
+        hasPassword: Boolean(r.password_hash && r.password_hash.trim().length > 0),
+        permissions: role === 'OWNER' ? DEFAULT_ROLE_PERMISSIONS.OWNER : perms,
+        createdAt: r.created_at || '',
+      };
+    });
 
   return ok({ users, currentUserId: auth.admin.id });
 });
 
 export const POST = handler(async (req: Request) => {
-  const auth = await requireAdmin(req, 'OWNER');
+  const auth = await requireAdmin(req, 'OWNER', 'users');
   if (!auth.ok) return auth.response;
 
   if (!sheetsConfigured()) {
@@ -69,6 +85,13 @@ export const POST = handler(async (req: Request) => {
     ? hashPassword(body.data.password.trim())
     : '';
 
+  const permissionsStr =
+    body.data.role === 'OWNER'
+      ? DEFAULT_ROLE_PERMISSIONS.OWNER.join(',')
+      : body.data.permissions && body.data.permissions.length > 0
+      ? body.data.permissions.join(',')
+      : (DEFAULT_ROLE_PERMISSIONS[body.data.role] || []).join(',');
+
   const record = {
     id: `u-${shortCode()}`,
     email: emailLower,
@@ -77,6 +100,7 @@ export const POST = handler(async (req: Request) => {
     name: body.data.name.trim(),
     role: body.data.role,
     is_active: body.data.isActive ? 'TRUE' : 'FALSE',
+    permissions: permissionsStr,
     created_at: new Date().toISOString(),
   };
 
@@ -85,7 +109,7 @@ export const POST = handler(async (req: Request) => {
     auth.admin,
     'create_user',
     record.id,
-    { username: record.username, role: record.role },
+    { username: record.username, role: record.role, permissions: permissionsStr },
     clientIp(req),
   );
 
@@ -93,7 +117,7 @@ export const POST = handler(async (req: Request) => {
 });
 
 export const PATCH = handler(async (req: Request) => {
-  const auth = await requireAdmin(req, 'OWNER');
+  const auth = await requireAdmin(req, 'OWNER', 'users');
   if (!auth.ok) return auth.response;
 
   if (!sheetsConfigured()) {
@@ -140,6 +164,13 @@ export const PATCH = handler(async (req: Request) => {
     passwordHash = hashPassword(body.data.password.trim());
   }
 
+  let permissionsStr = existing.permissions || '';
+  if (body.data.role === 'OWNER') {
+    permissionsStr = DEFAULT_ROLE_PERMISSIONS.OWNER.join(',');
+  } else if (body.data.permissions) {
+    permissionsStr = body.data.permissions.join(',');
+  }
+
   const record = {
     id: body.data.id,
     email: emailLower,
@@ -148,6 +179,7 @@ export const PATCH = handler(async (req: Request) => {
     name: body.data.name.trim(),
     role: body.data.role,
     is_active: body.data.isActive ? 'TRUE' : 'FALSE',
+    permissions: permissionsStr,
     created_at: existing.created_at || new Date().toISOString(),
   };
 
@@ -159,6 +191,7 @@ export const PATCH = handler(async (req: Request) => {
     {
       username: record.username,
       role: record.role,
+      permissions: permissionsStr,
       changedPassword: Boolean(body.data.password && body.data.password.trim().length > 0),
     },
     clientIp(req),
@@ -168,7 +201,7 @@ export const PATCH = handler(async (req: Request) => {
 });
 
 export const DELETE = handler(async (req: Request) => {
-  const auth = await requireAdmin(req, 'OWNER');
+  const auth = await requireAdmin(req, 'OWNER', 'users');
   if (!auth.ok) return auth.response;
 
   if (!sheetsConfigured()) {

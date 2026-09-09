@@ -106,6 +106,7 @@ export const HEADERS: Record<TabName, string[]> = {
   AdminUsers: [
     'id', 'email', 'username', 'password_hash', 'name', 'role',
     'is_active', 'created_at',
+    'is_active', 'created_at', 'permissions',
   ],
   Settings: ['key', 'value', 'description'],
   AuditLog: ['id', 'at', 'actor', 'action', 'target', 'detail', 'ip'],

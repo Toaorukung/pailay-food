@@ -6,6 +6,14 @@ import { loadAdminUsers } from '../sheets/repo';
 import { verifyPassword } from './password';
 import { rateLimit } from '../ratelimit';
 import { hasRole, type AdminRole, type AdminUser } from '../types';
+import {
+  hasRole,
+  hasPermission,
+  DEFAULT_ROLE_PERMISSIONS,
+  type AdminRole,
+  type AdminUser,
+  type PermissionId,
+} from '../types';
 
 /**
  * Admin authentication.
@@ -31,6 +39,7 @@ export interface AdminSession {
   name: string;
   role: AdminRole;
   via: 'google' | 'password';
+  permissions: PermissionId[];
 }
 
 function secret(): Uint8Array {
@@ -75,14 +84,19 @@ async function verifyToken(token: string | undefined): Promise<AdminSession | nu
       audience: AUDIENCE,
     });
     const { id, email, name, role, via } = payload as Record<string, unknown>;
+    const { id, email, name, role, via, permissions } = payload as Record<string, unknown>;
     if (typeof id !== 'string' || typeof email !== 'string') return null;
     if (role !== 'OWNER' && role !== 'MANAGER' && role !== 'STAFF') return null;
+    const perms = Array.isArray(permissions)
+      ? (permissions as PermissionId[])
+      : DEFAULT_ROLE_PERMISSIONS[role];
     return {
       id,
       email,
       name: typeof name === 'string' ? name : email,
       role,
       via: via === 'google' ? 'google' : 'password',
+      permissions: perms,
     };
   } catch {
     return null;
@@ -117,6 +131,7 @@ export async function adminFromRequest(req: Request): Promise<AdminSession | nul
 export async function requireAdmin(
   req: Request,
   minRole: AdminRole = 'STAFF',
+  requiredPermission?: PermissionId,
 ): Promise<{ ok: true; admin: AdminSession } | { ok: false; response: Response }> {
   const admin = await adminFromRequest(req);
   if (!admin) {
@@ -129,6 +144,18 @@ export async function requireAdmin(
     return {
       ok: false,
       response: Response.json({ error: 'สิทธิ์ไม่เพียงพอ' }, { status: 403 }),
+    };
+  }
+  if (
+    requiredPermission &&
+    !hasPermission(admin.role, admin.permissions, requiredPermission)
+  ) {
+    return {
+      ok: false,
+      response: Response.json(
+        { error: 'คุณไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้' },
+        { status: 403 },
+      ),
     };
   }
   return { ok: true, admin };
@@ -201,5 +228,9 @@ export function toSession(
     name: user.name,
     role: user.role,
     via,
+    permissions:
+      user.permissions && user.permissions.length > 0
+        ? user.permissions
+        : DEFAULT_ROLE_PERMISSIONS[user.role],
   };
 }

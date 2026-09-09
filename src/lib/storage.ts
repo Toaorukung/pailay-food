@@ -42,7 +42,7 @@ export async function putImage(
   if (blobConfigured()) {
     const { put } = await import('@vercel/blob');
     const blob = await put(id, data, {
-      access: 'private',
+      access: 'public',
       contentType,
       addRandomSuffix: true,
       // A slip can be re-uploaded after a rejection, so its cached copy must
@@ -98,6 +98,18 @@ export async function readImage(
   }
 
   if (!isBlobImage(url)) return null;
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (res.ok) {
+      return {
+        body: Buffer.from(await res.arrayBuffer()),
+        contentType: res.headers.get('content-type') || 'image/jpeg',
+      };
+    }
+  } catch {
+    // fallback to @vercel/blob get
+  }
 
   const { get } = await import('@vercel/blob');
   const found = await get(url, { access: 'private' }).catch(() => null);

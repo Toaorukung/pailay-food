@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { createAdminUserSchema, updateAdminUserSchema } from '@/lib/validation';
 import { hashPassword, verifyPassword } from '@/lib/admin/password';
+import { hasPermission, DEFAULT_ROLE_PERMISSIONS, PERMISSIONS } from '@/lib/types';
 
 describe('Admin User Schemas', () => {
   describe('createAdminUserSchema', () => {
-    it('validates a valid full user record', () => {
+    it('validates a valid full user record with custom permissions', () => {
       const parsed = createAdminUserSchema.safeParse({
         name: 'สมชาย ผู้จัดการ',
         username: 'somchai_mgr',
@@ -12,11 +13,13 @@ describe('Admin User Schemas', () => {
         role: 'MANAGER',
         password: 'securePassword123',
         isActive: true,
+        permissions: ['orders', 'pending', 'menu'],
       });
       expect(parsed.success).toBe(true);
       if (parsed.success) {
         expect(parsed.data.username).toBe('somchai_mgr');
         expect(parsed.data.role).toBe('MANAGER');
+        expect(parsed.data.permissions).toEqual(['orders', 'pending', 'menu']);
       }
     });
 
@@ -77,8 +80,12 @@ describe('Admin User Schemas', () => {
         email: 'new@example.com',
         role: 'OWNER',
         isActive: false,
+        permissions: ['orders', 'payments'],
       });
       expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.permissions).toEqual(['orders', 'payments']);
+      }
     });
 
     it('validates valid update with new password', () => {
@@ -114,4 +121,37 @@ describe('Admin User Schemas', () => {
       expect(verifyPassword('WrongPassword', hash)).toBe(false);
     });
   });
+
+  describe('Granular Permissions & hasPermission Helper', () => {
+    it('grants full access to OWNER regardless of explicit permissions', () => {
+      expect(hasPermission('OWNER', [], 'users')).toBe(true);
+      expect(hasPermission('OWNER', [], 'settings')).toBe(true);
+      expect(hasPermission('OWNER', ['orders'], 'reports')).toBe(true);
+    });
+
+    it('checks explicit permissions for STAFF', () => {
+      expect(hasPermission('STAFF', ['orders', 'pending'], 'orders')).toBe(true);
+      expect(hasPermission('STAFF', ['orders', 'pending'], 'pending')).toBe(true);
+      expect(hasPermission('STAFF', ['orders', 'pending'], 'menu')).toBe(false);
+      expect(hasPermission('STAFF', ['orders', 'pending'], 'settings')).toBe(false);
+    });
+
+    it('falls back to default permissions when permissions array is undefined or empty', () => {
+      expect(hasPermission('STAFF', undefined, 'orders')).toBe(true);
+      expect(hasPermission('STAFF', undefined, 'settings')).toBe(false);
+      expect(hasPermission('MANAGER', undefined, 'menu')).toBe(true);
+      expect(hasPermission('MANAGER', undefined, 'users')).toBe(false);
+    });
+
+    it('ensures all defined permissions have metadata and belong to categories', () => {
+      expect(PERMISSIONS.length).toBeGreaterThan(10);
+      for (const p of PERMISSIONS) {
+        expect(p.id).toBeDefined();
+        expect(p.label).toBeDefined();
+        expect(p.group).toBeDefined();
+        expect(p.desc).toBeDefined();
+      }
+    });
+  });
 });
+

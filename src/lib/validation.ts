@@ -352,6 +352,7 @@ export const createAdminUserSchema = z.object({
     .default(''),
   role: z.enum(['OWNER', 'MANAGER', 'STAFF']).default('STAFF'),
   isActive: z.boolean().default(true),
+  permissions: z.array(z.string()).default([]),
 });
 
 export const updateAdminUserSchema = z.object({
@@ -377,6 +378,7 @@ export const updateAdminUserSchema = z.object({
     .optional(),
   role: z.enum(['OWNER', 'MANAGER', 'STAFF']),
   isActive: z.boolean(),
+  permissions: z.array(z.string()).optional(),
 });
 
 /** Parses a JSON body, returning a typed error instead of throwing. */

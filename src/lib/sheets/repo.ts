@@ -5,6 +5,7 @@ import { TABS, fullRange, toObjects, num, bool, list, type RawRow } from './sche
 import type {
   AdminUser,
   AdminRole,
+  PermissionId,
   Allergen,
   Category,
   GuestField,
@@ -360,10 +361,29 @@ export async function loadAdminUsers(): Promise<AdminUser[]> {
       passwordHash: r.password_hash ?? '',
       name: r.name || r.username || r.email,
       role: (['OWNER', 'MANAGER', 'STAFF'].includes(r.role)
+    .map((r) => {
+      const role = (['OWNER', 'MANAGER', 'STAFF'].includes(r.role)
         ? r.role
         : 'STAFF') as AdminRole,
       isActive: bool(r.is_active, true),
     }));
+        : 'STAFF') as AdminRole;
+      const rawPerms = (r.permissions || '').trim();
+      const permissions = rawPerms
+        ? (rawPerms.split(',').map((p) => p.trim()).filter(Boolean) as PermissionId[])
+        : undefined;
+
+      return {
+        id: r.id,
+        email: (r.email ?? '').toLowerCase(),
+        username: (r.username ?? '').toLowerCase(),
+        passwordHash: r.password_hash ?? '',
+        name: r.name || r.username || r.email,
+        role,
+        isActive: bool(r.is_active, true),
+        permissions,
+      };
+    });
 }
 
 export async function loadSettingsMap(): Promise<Record<string, string>> {

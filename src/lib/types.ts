@@ -407,6 +407,60 @@ export interface Payment {
 
 export type AdminRole = 'OWNER' | 'MANAGER' | 'STAFF';
 
+export const PERMISSIONS = [
+  // บริการ & ออเดอร์
+  { id: 'orders', label: 'ครัว / ออเดอร์', group: 'บริการ & ออเดอร์', desc: 'ดูออเดอร์ ปรับสถานะกำลังทำ / เสร็จแล้ว' },
+  { id: 'pending', label: 'คอนเฟิร์มออเดอร์', group: 'บริการ & ออเดอร์', desc: 'ตรวจสอบและยืนยันออเดอร์ ปรับราคาถามราคา' },
+  { id: 'payments', label: 'การเงิน & สลิป', group: 'บริการ & ออเดอร์', desc: 'อัปโหลดสลิป ยืนยันยอดชำระเงิน' },
+  { id: 'sessions', label: 'เซสชันโต๊ะ/วิลล่า', group: 'บริการ & ออเดอร์', desc: 'ดูสถานะโต๊ะที่เปิดอยู่ และปิดเซสชัน' },
+
+  // จัดการร้าน
+  { id: 'menu', label: 'จัดการเมนูอาหาร', group: 'จัดการร้าน', desc: 'เพิ่ม แก้ไข ลบเมนู และกดสลับเมนูหมด' },
+  { id: 'categories', label: 'หมวดหมู่อาหาร', group: 'จัดการร้าน', desc: 'จัดการหมวดหมู่อาหาร' },
+  { id: 'allergens', label: 'สารก่อภูมิแพ้', group: 'จัดการร้าน', desc: 'ตั้งค่าสารก่อภูมิแพ้' },
+  { id: 'guest_fields', label: 'คำถามก่อนสั่ง', group: 'จัดการร้าน', desc: 'ตั้งค่าคำถามเพิ่มเติมที่ให้แขกกรอก' },
+  { id: 'tables', label: 'บ้านพัก / วิลล่า', group: 'จัดการร้าน', desc: 'จัดการรายชื่อวิลล่าและพิกัด' },
+  { id: 'reports', label: 'รายงานยอดขาย', group: 'จัดการร้าน', desc: 'ดูสถิติและรายงานยอดขาย' },
+
+  // ระบบ & ความปลอดภัย
+  { id: 'users', label: 'จัดการผู้ใช้งาน', group: 'ระบบ & ความปลอดภัย', desc: 'เพิ่ม/แก้ไขผู้ใช้ และกำหนดสิทธิ์' },
+  { id: 'settings', label: 'ตั้งค่าร้านค้า', group: 'ระบบ & ความปลอดภัย', desc: 'ตั้งค่าทั่วไป เวลาเปิด-ปิด ภาษี พร้อมเพย์' },
+  { id: 'audit', label: 'ประวัติการแก้ไข', group: 'ระบบ & ความปลอดภัย', desc: 'ดูบันทึก Audit Log ย้อนหลัง' },
+] as const;
+
+export type PermissionId = (typeof PERMISSIONS)[number]['id'];
+
+export const DEFAULT_ROLE_PERMISSIONS: Record<AdminRole, PermissionId[]> = {
+  OWNER: PERMISSIONS.map((p) => p.id),
+  MANAGER: [
+    'orders',
+    'pending',
+    'payments',
+    'sessions',
+    'menu',
+    'categories',
+    'allergens',
+    'guest_fields',
+    'tables',
+    'reports',
+  ],
+  STAFF: ['orders', 'pending', 'payments', 'sessions'],
+};
+
+export function hasPermission(
+  role: AdminRole | undefined,
+  permissions: PermissionId[] | undefined,
+  required: PermissionId,
+): boolean {
+  if (!role) return false;
+  if (role === 'OWNER') return true;
+  const userPerms =
+    permissions && permissions.length > 0
+      ? permissions
+      : DEFAULT_ROLE_PERMISSIONS[role] ?? [];
+  return userPerms.includes(required);
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -415,6 +469,7 @@ export interface AdminUser {
   name: string;
   role: AdminRole;
   isActive: boolean;
+  permissions?: PermissionId[];
 }
 
 /** Ranked capability check — OWNER outranks MANAGER outranks STAFF. */
