@@ -1,6 +1,18 @@
 {
   "git.autofetch": false,
   "git.autorefresh": true,
-  "git.untrackedChanges": "separate",
-  "git.ignoreSubmodules": true
+  "git.untrackedChanges": "mixed",
+  "git.ignoreSubmodules": true,
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/.vercel/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.git": true
+  }
 }
