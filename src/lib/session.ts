@@ -161,6 +161,7 @@ export async function createOrJoinSession(
     guestName: '',
     guestPhone: '',
     allergyProfile: [],
+    guestExtra: [],
     lineUserId,
     geoStatus: 'UNKNOWN',
     distanceM: null,
@@ -241,6 +242,11 @@ function sessionRow(s: GuestSession): Record<string, unknown> {
     guest_phone: s.guestPhone ?? '',
     allergy_profile: s.allergyProfile.join(','),
     line_user_id: s.lineUserId ?? '',
+    // Sessions opened before the villa added any question have no answers, and
+    // sessions cached in Redis from before this column existed have no array
+    // at all — both write an empty cell rather than "undefined".
+    guest_extra:
+      s.guestExtra && s.guestExtra.length > 0 ? JSON.stringify(s.guestExtra) : '',
     geo_status: s.geoStatus,
     distance_m: s.distanceM ?? '',
     locale: s.locale,

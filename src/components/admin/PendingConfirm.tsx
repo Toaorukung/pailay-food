@@ -235,7 +235,11 @@ export function PendingConfirm({ catalog: initialCatalog }: { catalog?: MenuCata
   );
 }
 
-type LiveSession = { guestName: string; guestPhone: string };
+type LiveSession = {
+  guestName: string;
+  guestPhone: string;
+  guestExtra?: { fieldId: string; label: string; value: string }[];
+};
 
 function PendingCard({
   order,
@@ -309,6 +313,20 @@ function PendingCard({
             {order.lineUserId ? 'แจ้งกลับทาง LINE ได้' : 'ไม่มี LINE'}
           </span>
         </div>
+
+        {/* The villa's own intake answers — headcount, room, checkout time.
+            Placed with the phone number because this is the screen staff are
+            looking at while the call is ringing. */}
+        {session?.guestExtra && session.guestExtra.length > 0 && (
+          <dl className="flex flex-wrap gap-x-4 gap-y-1 px-3 text-sm">
+            {session.guestExtra.map((answer) => (
+              <div key={answer.fieldId} className="flex gap-1.5">
+                <dt className="muted">{answer.label}:</dt>
+                <dd className="font-semibold">{answer.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
 
         {order.allergyLabels.length > 0 && (
           <p className="flex items-start gap-2 rounded-xl bg-[var(--danger-soft)] p-3 text-sm font-semibold text-[var(--danger)]">

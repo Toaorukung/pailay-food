@@ -162,6 +162,9 @@ export function bundledCatalog(version: number): MenuCatalog {
     categories,
     allergens,
     items,
+    // Extra intake questions are a villa's own configuration, so the bundled
+    // fallback ships none: name and phone are asked either way.
+    guestFields: [],
     settings,
   };
 }

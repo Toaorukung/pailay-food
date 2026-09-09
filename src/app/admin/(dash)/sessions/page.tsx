@@ -23,6 +23,8 @@ interface SessionRow {
   guestName: string;
   guestPhone: string;
   allergyProfile: string[];
+  /** Answers to the villa's own intake questions. Absent on older sessions. */
+  guestExtra?: { fieldId: string; label: string; value: string }[];
   geoStatus: string;
   distanceM: number | null;
   orderCount: number;
@@ -117,6 +119,18 @@ export default function SessionsPage() {
                     >
                       {s.guestPhone}
                     </a>
+                  )}
+                  {s.guestExtra && s.guestExtra.length > 0 && (
+                    <dl className="mt-1 space-y-0.5 text-xs muted">
+                      {s.guestExtra.map((answer) => (
+                        <div key={answer.fieldId} className="flex gap-1.5">
+                          <dt className="shrink-0">{answer.label}:</dt>
+                          <dd className="font-medium text-[var(--text)]">
+                            {answer.value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
                   )}
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     

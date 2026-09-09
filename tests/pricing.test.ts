@@ -97,6 +97,7 @@ const catalog: MenuCatalog = {
   categories: [],
   allergens: [],
   items: [padThai, soldOut],
+  guestFields: [],
   settings,
 };
 

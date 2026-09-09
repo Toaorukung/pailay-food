@@ -14,6 +14,7 @@ import {
   menuItemSchema,
   categorySchema,
   allergenSchema,
+  guestFieldSchema,
   tableSchema,
   optionGroupSchema,
   optionSchema,
@@ -39,6 +40,11 @@ const EDITABLE = {
   menu: { tab: TABS.Menu, schema: menuItemSchema, prefix: 'm' },
   categories: { tab: TABS.Categories, schema: categorySchema, prefix: 'c' },
   allergens: { tab: TABS.Allergens, schema: allergenSchema, prefix: 'a' },
+  'guest-fields': {
+    tab: TABS.GuestFields,
+    schema: guestFieldSchema,
+    prefix: 'gf',
+  },
   tables: { tab: TABS.Tables, schema: tableSchema, prefix: 'v' },
   'option-groups': {
     tab: TABS.MenuOptionGroups,

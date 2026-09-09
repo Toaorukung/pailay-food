@@ -9,7 +9,13 @@ import { sessionPayments } from './payments';
 import { computeTotals } from './pricing';
 import { getCatalog } from './menu-cache';
 import { bangkokMinutes, orderWindowState } from './availability';
-import type { Cart, GuestSession, Order, Payment } from './types';
+import type {
+  Cart,
+  GuestExtraAnswer,
+  GuestSession,
+  Order,
+  Payment,
+} from './types';
 
 /**
  * Everything the guest UI needs in one round trip: session state, the working
@@ -59,6 +65,8 @@ export interface PublicSession {
   guestName: string;
   guestPhone: string;
   allergyProfile: string[];
+  /** Answers to the villa's own intake questions, so the step can prefill. */
+  guestExtra: GuestExtraAnswer[];
   /** Whether this session is bound to a LINE account that can be messaged. */
   hasLine: boolean;
   geoStatus: GuestSession['geoStatus'];
@@ -87,6 +95,8 @@ export function publicSession(s: GuestSession): PublicSession {
     guestName: s.guestName,
     guestPhone: s.guestPhone,
     allergyProfile: s.allergyProfile,
+    // Sessions cached from before this field existed have no array at all.
+    guestExtra: s.guestExtra ?? [],
     // The id itself never leaves the server: it is the handle for messaging
     // that person, and the page only needs to know whether one exists.
     hasLine: Boolean(s.lineUserId),

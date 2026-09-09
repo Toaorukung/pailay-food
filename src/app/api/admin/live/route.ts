@@ -29,6 +29,8 @@ export interface AdminLive {
     guestName: string;
     guestPhone: string;
     allergyProfile: string[];
+    /** Answers to the villa's own intake questions, for the confirm call. */
+    guestExtra: { fieldId: string; label: string; value: string }[];
     geoStatus: string;
     distanceM: number | null;
   }[];
@@ -97,6 +99,7 @@ export const GET = handler(async (req: Request) => {
       guestName: s.guestName,
       guestPhone: s.guestPhone ?? '',
       allergyProfile: s.allergyProfile,
+      guestExtra: s.guestExtra ?? [],
       geoStatus: s.geoStatus,
       distanceM: s.distanceM,
     })),

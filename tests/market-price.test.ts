@@ -94,6 +94,7 @@ const catalog: MenuCatalog = {
   categories: [],
   allergens: [],
   items: [grouper, rice],
+  guestFields: [],
   settings,
 };
 

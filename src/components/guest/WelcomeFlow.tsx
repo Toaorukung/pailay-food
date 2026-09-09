@@ -2,34 +2,36 @@
 
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n/provider';
-import { Button, Dialog, Field, Input } from '@/components/ui';
+import { Button, Dialog, Field, Input, Select, Textarea } from '@/components/ui';
+import type { GuestExtraAnswer, GuestField, Locale } from '@/lib/types';
 import { guestApi } from './api';
 
-/**
- * The step this component owns. The allergy question follows it.
- *
- * A single-member union rather than a bare string: the conditions used to be a
- * step here too, and keeping the shape means moving one back is an addition
- * rather than a refactor of every caller.
- */
 export type WelcomeStep = 'details';
 
-/** Enough digits to be a number someone can actually ring. */
+/** Enough digits to be a phone number someone can actually ring. */
 const MIN_PHONE_DIGITS = 8;
 const PHONE_ALLOWED = /^[0-9+\-() ]+$/;
 
+/** Matches the server's per-answer cap in allergyProfileSchema. */
+const EXTRA_MAX_LENGTH = 500;
+
+function optionsFor(field: GuestField, locale: Locale): string[] {
+  const own = field.options[locale];
+  return own.length > 0 ? own : field.options.th;
+}
+
 /**
- * Who is ordering, asked the first time a guest reaches the menu.
+ * Guest Login & Verification Flow.
  *
- * An order arriving at reception without a number is one nobody can chase —
- * and under the current flow that call is the whole point, since staff ring
- * the villa to confirm the ticket before the kitchen starts. So this cannot be
- * dismissed: no close button, no Escape, no click-outside. The only way
- * forward is the button in the footer.
+ * Verifies guest identity using their booking phone number against the
+ * resort's master Google Sheet (บันทึกการจอง).
  *
- * The name may already be filled in from the guest's LINE profile. The phone
- * number is what marks the session as introduced, so once saved the flow never
- * returns.
+ * It checks:
+ * 1. That a booking with this phone number exists.
+ * 2. That today's date is within the stay period (Check-in to Check-out).
+ *
+ * Once verified, the guest's name is automatically fetched from the booking sheet
+ * so the guest never has to type it manually.
  */
 export function WelcomeFlow({
   step,
@@ -38,42 +40,46 @@ export function WelcomeFlow({
   sessionId,
   guestName: initialName,
   guestPhone: initialPhone,
+  fields,
+  guestExtra: initialExtra,
   onSaved,
   stepNumber,
   totalSteps,
 }: {
   step: WelcomeStep | null;
   onStepChange: (step: WelcomeStep | null) => void;
-  /** Name and phone are stored — move on to the allergy question. */
+  /** Phone verified and stay active — move on to the allergy question. */
   onDetailsSaved: () => void;
   sessionId: string;
   guestName: string;
   guestPhone: string;
+  /** The villa's extra questions, already filtered to the active ones. */
+  fields: GuestField[];
+  /** Answers already on the session, so reopening the step is not a retype. */
+  guestExtra: GuestExtraAnswer[];
   onSaved: () => Promise<unknown>;
   stepNumber: number;
   totalSteps: number;
 }) {
-  const { t } = useI18n();
-  const [name, setName] = useState(initialName);
+  const { t, locale } = useI18n();
   const [phone, setPhone] = useState(initialPhone);
+  const [extra, setExtra] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Whatever LINE, staff or an earlier visit already recorded is what the
-  // fields should show when the flow opens.
   useEffect(() => {
     if (step === 'details') {
-      setName(initialName);
       setPhone(initialPhone);
+      setExtra(
+        Object.fromEntries(initialExtra.map((a) => [a.fieldId, a.value])),
+      );
       setError(null);
     }
-  }, [step, initialName, initialPhone]);
+  }, [step, initialPhone, initialExtra]);
 
-  async function saveDetails() {
-    const trimmedName = name.trim();
+  async function loginAndVerify() {
     const trimmedPhone = phone.trim();
 
-    if (!trimmedName) return setError(t('guest.nameRequired'));
     if (!trimmedPhone) return setError(t('guest.phoneRequired'));
     if (
       !PHONE_ALLOWED.test(trimmedPhone) ||
@@ -82,17 +88,43 @@ export function WelcomeFlow({
       return setError(t('guest.phoneInvalid'));
     }
 
+    const missing = fields.find(
+      (f) => f.required && !(extra[f.id] ?? '').trim(),
+    );
+    if (missing) {
+      return setError(
+        t('guest.fieldRequired', {
+          label: missing.label[locale] || missing.label.th,
+        }),
+      );
+    }
+
     setBusy(true);
     setError(null);
-    const res = await guestApi.saveGuest(sessionId, {
-      guestName: trimmedName,
-      guestPhone: trimmedPhone,
+
+    // 1. Verify phone and stay dates with the booking sheet
+    const res = await guestApi.verifyBooking(sessionId, {
+      phone: trimmedPhone,
     });
-    setBusy(false);
+
     if (!res.ok) {
+      setBusy(false);
       setError(res.error);
       return;
     }
+
+    // 2. Save any extra villa questions if present
+    if (fields.length > 0) {
+      await guestApi.saveGuest(sessionId, {
+        guestName: res.data.guestName,
+        guestPhone: res.data.guestPhone,
+        guestExtra: Object.fromEntries(
+          fields.map((f) => [f.id, (extra[f.id] ?? '').trim()]),
+        ),
+      });
+    }
+
+    setBusy(false);
     await onSaved();
     onDetailsSaved();
   }
@@ -100,14 +132,11 @@ export function WelcomeFlow({
   return (
     <Dialog
       open={step !== null}
-      // Required onboarding: no close button, no Escape, no click-outside. A
-      // guest who dismissed this would skip giving their name and phone, and
-      // an order with no number is one reception cannot confirm.
       dismissible={false}
       onOpenChange={(open) => {
         if (!open) onStepChange(null);
       }}
-      title={t('guest.title')}
+      title={t('guest.loginTitle')}
       description={
         <>
           {totalSteps > 1 && (
@@ -115,26 +144,26 @@ export function WelcomeFlow({
               {t('welcome.step', { n: stepNumber, total: totalSteps })}
             </span>
           )}
-          {t('guest.intro')}
+          {t('guest.loginIntro')}
         </>
       }
       footer={
-        <Button full loading={busy} onClick={saveDetails}>
-          {t('guest.next')}
+        <Button full loading={busy} onClick={loginAndVerify}>
+          {busy ? t('guest.verifying') : t('guest.loginBtn')}
         </Button>
       }
     >
       <div className="space-y-3">
-        <Field label={t('guest.name')}>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('guest.namePlaceholder')}
-            maxLength={80}
-            autoComplete="name"
-            enterKeyHint="next"
-          />
-        </Field>
+        {initialName && initialPhone && (
+          <div className="rounded-xl border border-[var(--brand)]/25 bg-[var(--brand-soft)]/20 p-3 text-xs text-[var(--text)]">
+            <span className="font-semibold text-[var(--brand)]">
+              {t('guest.loggedInAs', { name: initialName })}
+            </span>
+            <span className="block text-[var(--text-muted)]">
+              {t('guest.phone')}: {initialPhone}
+            </span>
+          </div>
+        )}
 
         <Field label={t('guest.phone')}>
           <Input
@@ -146,18 +175,86 @@ export function WelcomeFlow({
             inputMode="tel"
             autoComplete="tel"
             enterKeyHint="done"
+            autoFocus
             onKeyDown={(e) => {
-              if (e.key === 'Enter') saveDetails();
+              if (e.key === 'Enter' && fields.length === 0) loginAndVerify();
             }}
           />
         </Field>
 
+        {fields.map((field) => (
+          <ExtraField
+            key={field.id}
+            field={field}
+            locale={locale}
+            value={extra[field.id] ?? ''}
+            onChange={(v) => setExtra((prev) => ({ ...prev, [field.id]: v }))}
+          />
+        ))}
+
         {error && (
-          <p className="rounded-xl bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">
+          <p className="rounded-xl bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)] leading-relaxed">
             {error}
           </p>
         )}
       </div>
     </Dialog>
+  );
+}
+
+function ExtraField({
+  field,
+  locale,
+  value,
+  onChange,
+}: {
+  field: GuestField;
+  locale: Locale;
+  value: string;
+  onChange: (value: string) => void;
+}): React.JSX.Element {
+  const { t } = useI18n();
+  const label = field.label[locale] || field.label.th;
+
+  if (field.type === 'select') {
+    return (
+      <Field label={label}>
+        <Select value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{t('guest.selectPlaceholder')}</option>
+          {optionsFor(field, locale).map((choice) => (
+            <option key={choice} value={choice}>
+              {choice}
+            </option>
+          ))}
+        </Select>
+      </Field>
+    );
+  }
+
+  if (field.type === 'textarea') {
+    return (
+      <Field label={label}>
+        <Textarea
+          rows={3}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          maxLength={EXTRA_MAX_LENGTH}
+        />
+      </Field>
+    );
+  }
+
+  return (
+    <Field label={label}>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={EXTRA_MAX_LENGTH}
+        type={field.type === 'number' ? 'number' : field.type === 'tel' ? 'tel' : 'text'}
+        inputMode={
+          field.type === 'number' ? 'numeric' : field.type === 'tel' ? 'tel' : undefined
+        }
+      />
+    </Field>
   );
 }

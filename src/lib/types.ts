@@ -102,6 +102,49 @@ export interface MenuItem {
   optionGroups: MenuOptionGroup[];
 }
 
+export const GUEST_FIELD_TYPES = [
+  'text',
+  'textarea',
+  'tel',
+  'number',
+  'select',
+] as const;
+
+export type GuestFieldType = (typeof GUEST_FIELD_TYPES)[number];
+
+/**
+ * An extra question the villa asks on the way in, alongside the built-in name
+ * and phone.
+ *
+ * Name and phone stay in code rather than becoming rows here: the phone number
+ * is what marks a session as introduced and what staff ring to confirm a
+ * ticket, so it is load-bearing in a way an owner-defined question is not.
+ */
+export interface GuestField {
+  id: string;
+  label: Localized;
+  type: GuestFieldType;
+  /** Choices for the `select` type, per language. Empty for every other type. */
+  options: { th: string[]; en: string[]; zh: string[] };
+  required: boolean;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+/**
+ * One answer, with the question as it was worded when it was asked.
+ *
+ * The label is a snapshot for the same reason an order line snapshots its dish
+ * name: the owner may reword or delete the question next week, and staff
+ * reading an older session need what the guest actually saw, not what the
+ * question says now.
+ */
+export interface GuestExtraAnswer {
+  fieldId: string;
+  label: string;
+  value: string;
+}
+
 /** The single blob cached in Redis and shipped to the client. */
 export interface MenuCatalog {
   version: number;
@@ -109,6 +152,8 @@ export interface MenuCatalog {
   categories: Category[];
   allergens: Allergen[];
   items: MenuItem[];
+  /** Extra intake questions, already filtered to the active ones and sorted. */
+  guestFields: GuestField[];
   settings: PublicSettings;
 }
 
@@ -183,6 +228,8 @@ export interface GuestSession {
   guestPhone: string;
   /** Allergen ids the guest declared. */
   allergyProfile: string[];
+  /** Answers to the villa's own intake questions. Empty when it asks none. */
+  guestExtra: GuestExtraAnswer[];
   /**
    * The LINE account that opened the link, verified from a LIFF id token.
    * This is what the confirmation message is pushed to. Blank when the app was

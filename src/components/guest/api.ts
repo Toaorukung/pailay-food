@@ -88,15 +88,34 @@ export const guestApi = {
     }),
 
   /**
-   * Name and phone on their own, from the step that asks for them before the
-   * guest has seen the allergen list. Allergies are deliberately not sent, so
-   * this cannot clear a profile saved earlier in the stay.
+   * Name, phone and the villa's own intake answers, from the step that asks for
+   * them before the guest has seen the allergen list. Allergies are
+   * deliberately not sent, so this cannot clear a profile saved earlier in the
+   * stay.
    */
   saveGuest: (
     sessionId: string,
-    body: { guestName: string; guestPhone: string },
+    body: {
+      guestName: string;
+      guestPhone: string;
+      guestExtra?: Record<string, string>;
+    },
   ) =>
     call<GuestProfile>(`/api/s/${sessionId}/allergy`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  verifyBooking: (
+    sessionId: string,
+    body: { phone: string },
+  ) =>
+    call<{
+      guestName: string;
+      guestPhone: string;
+      villa: string;
+      booking?: Record<string, unknown>;
+    }>(`/api/s/${sessionId}/verify-booking`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),

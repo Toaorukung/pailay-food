@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n/provider';
-import { Button, Dialog, Field, Input, cn } from '@/components/ui';
+import { Button, Dialog, cn } from '@/components/ui';
 import type { MenuCatalog } from '@/lib/types';
 import { guestApi } from './api';
 
@@ -11,10 +11,6 @@ import { guestApi } from './api';
  * header afterwards. Whatever is selected here drives the warnings on the
  * menu, the blocking confirmation before a conflicting dish enters the cart,
  * and the red banner on the kitchen ticket.
- *
- * Name and phone appear here only on the edit path. During the opening flow
- * they have a step of their own immediately before this one, and repeating
- * them would read as a form the guest failed to fill in.
  */
 export function AllergyDialog({
   open,
@@ -42,8 +38,6 @@ export function AllergyDialog({
 }) {
   const { t, L } = useI18n();
   const [selected, setSelected] = useState<string[]>(current);
-  const [name, setName] = useState(initialName);
-  const [phone, setPhone] = useState(initialPhone);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,11 +45,9 @@ export function AllergyDialog({
   useEffect(() => {
     if (open) {
       setSelected(current);
-      setName(initialName);
-      setPhone(initialPhone);
       setError(null);
     }
-  }, [open, current, initialName, initialPhone]);
+  }, [open, current]);
 
   const allergens = catalog.allergens.filter((a) => a.isActive);
 
@@ -64,10 +56,6 @@ export function AllergyDialog({
     setError(null);
     const res = await guestApi.saveAllergies(sessionId, {
       allergens: list,
-      // Omitted on the flow path, where the previous step already stored them.
-      ...(showIdentity
-        ? { guestName: name.trim(), guestPhone: phone.trim() }
-        : {}),
     });
     setBusy(false);
     if (!res.ok) {
@@ -124,28 +112,14 @@ export function AllergyDialog({
           })}
         </div>
 
-        {showIdentity && (
-          <div className="space-y-3">
-            <Field label={t('guest.name')}>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('guest.namePlaceholder')}
-                maxLength={80}
-                autoComplete="name"
-              />
-            </Field>
-            <Field label={t('guest.phone')} hint={t('allergy.editIntro')}>
-              <Input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder={t('guest.phonePlaceholder')}
-                maxLength={40}
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-              />
-            </Field>
+        {showIdentity && initialPhone && (
+          <div className="rounded-xl border border-[var(--brand)]/20 bg-[var(--brand-soft)]/20 p-3 text-xs text-[var(--text)]">
+            <span className="font-semibold text-[var(--brand)]">
+              {t('guest.loggedInAs', { name: initialName || '-' })}
+            </span>
+            <span className="block text-[var(--text-muted)]">
+              {t('guest.phone')}: {initialPhone}
+            </span>
           </div>
         )}
 

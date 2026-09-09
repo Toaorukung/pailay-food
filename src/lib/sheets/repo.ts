@@ -7,6 +7,8 @@ import type {
   AdminRole,
   Allergen,
   Category,
+  GuestField,
+  GuestFieldType,
   Localized,
   MenuCatalog,
   MenuItem,
@@ -15,6 +17,7 @@ import type {
   PublicSettings,
   VillaTable,
 } from '../types';
+import { GUEST_FIELD_TYPES } from '../types';
 
 function loc(r: RawRow, prefix: string): Localized {
   return {
@@ -117,6 +120,57 @@ function publicSettings(map: Record<string, string>): PublicSettings {
   };
 }
 
+// ── Guest intake fields ─────────────────────────────────────
+
+function localizedList(r: RawRow, prefix: string): {
+  th: string[];
+  en: string[];
+  zh: string[];
+} {
+  return {
+    th: list(r[`${prefix}_th`]),
+    en: list(r[`${prefix}_en`]),
+    zh: list(r[`${prefix}_zh`]),
+  };
+}
+
+function guestFieldsFrom(rows: RawRow[]): GuestField[] {
+  return rows
+    .filter((r) => r.id && r.label_th)
+    .map((r) => ({
+      id: r.id,
+      label: loc(r, 'label'),
+      type: (GUEST_FIELD_TYPES as readonly string[]).includes(r.type)
+        ? (r.type as GuestFieldType)
+        : 'text',
+      options: localizedList(r, 'options'),
+      required: bool(r.required, false),
+      sortOrder: num(r.sort_order, 999),
+      isActive: bool(r.is_active, true),
+    }))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/**
+ * Read on its own rather than in the catalog's single batch, and forgiving of
+ * failure on purpose.
+ *
+ * A spreadsheet set up before this feature existed has no GuestFields tab at
+ * all, and one unknown range fails the whole batchGet — which would take the
+ * menu down until somebody re-ran the seed. Asking no extra questions is the
+ * right behaviour for a villa that never configured any, so a missing tab is
+ * an empty list, not an outage.
+ */
+async function loadGuestFields(): Promise<GuestField[]> {
+  const range = fullRange(TABS.GuestFields);
+  try {
+    const res = await batchGet([range]);
+    return guestFieldsFrom(toObjects(res[range] ?? []).rows);
+  } catch {
+    return [];
+  }
+}
+
 // ── Catalog ─────────────────────────────────────────────────
 
 /**
@@ -134,7 +188,10 @@ export async function loadCatalogFromSheets(version: number): Promise<MenuCatalo
     fullRange(TABS.Allergens),
     fullRange(TABS.Settings),
   ];
-  const res = await batchGet(ranges);
+  const [res, guestFields] = await Promise.all([
+    batchGet(ranges),
+    loadGuestFields(),
+  ]);
 
   const categories: Category[] = toObjects(res[ranges[0]] ?? [])
     .rows.filter((r) => r.id)
@@ -243,6 +300,7 @@ export async function loadCatalogFromSheets(version: number): Promise<MenuCatalo
     categories,
     allergens,
     items,
+    guestFields: guestFields.filter((f) => f.isActive),
     settings: publicSettings(settingsMap),
   };
 }

@@ -204,11 +204,21 @@ export function GuestApp({
             <p className="truncate text-[17px] font-bold leading-tight tracking-tight">
               {catalog.settings.shopName}
             </p>
-            <p className="truncate text-xs text-white/75">
-              {snapshot.session.villa
-                ? `${t('session.villa')} ${snapshot.session.villa}`
-                : snapshot.session.tableLabel}
-            </p>
+            <button
+              type="button"
+              onClick={() => canOrder && setFlowStep('details')}
+              className="flex max-w-full items-center gap-1 truncate text-xs text-white/80 transition-opacity hover:opacity-100 text-left"
+              title={t('guest.changePhone')}
+            >
+              <span className="truncate">
+                {snapshot.session.guestName
+                  ? `${snapshot.session.guestName} · `
+                  : ''}
+                {snapshot.session.villa
+                  ? `${t('session.villa')} ${snapshot.session.villa}`
+                  : snapshot.session.tableLabel}
+              </span>
+            </button>
           </div>
 
           <ThemeToggle tone="onBrand" />
@@ -363,6 +373,8 @@ export function GuestApp({
         sessionId={sessionId}
         guestName={snapshot.session.guestName}
         guestPhone={snapshot.session.guestPhone}
+        fields={catalog.guestFields}
+        guestExtra={snapshot.session.guestExtra}
         onSaved={refresh}
         stepNumber={stepNumber}
         totalSteps={flowSteps.length}

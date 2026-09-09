@@ -12,6 +12,7 @@ export const TABS = {
   MenuOptionGroups: 'MenuOptionGroups',
   MenuOptions: 'MenuOptions',
   Allergens: 'Allergens',
+  GuestFields: 'GuestFields',
   Tables: 'Tables',
   Sessions: 'Sessions',
   Orders: 'Orders',
@@ -55,6 +56,14 @@ export const HEADERS: Record<TabName, string[]> = {
     'price_delta', 'is_available', 'sort_order',
   ],
   Allergens: ['id', 'name_th', 'name_en', 'name_zh', 'icon', 'is_active'],
+  // Extra questions the villa asks on the way in, beside the built-in name and
+  // phone. `options_*` is a comma-separated choice list, read only by the
+  // select type and ignored by the rest.
+  GuestFields: [
+    'id', 'label_th', 'label_en', 'label_zh',
+    'type', 'options_th', 'options_en', 'options_zh',
+    'required', 'sort_order', 'is_active',
+  ],
   Tables: [
     'id', 'label', 'villa',
     // `slug` is the villa's own address segment, /{slug}/{sessionId}.
@@ -73,6 +82,10 @@ export const HEADERS: Record<TabName, string[]> = {
     // The LINE account that opened the link, when the guest came in through
     // the Official Account. Blank for an ordinary browser.
     'line_user_id',
+    // Answers to the villa's own GuestFields questions, as JSON. Each answer
+    // carries the label it was asked under, so a question edited or deleted
+    // later does not rewrite what an earlier guest was actually asked.
+    'guest_extra',
   ],
   Orders: [
     'order_id', 'session_id', 'table_id', 'created_at', 'status',

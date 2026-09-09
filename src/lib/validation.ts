@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LOCALES } from './types';
+import { GUEST_FIELD_TYPES, LOCALES } from './types';
 
 /** Per the brief: at most 500 characters of notes on any one menu line. */
 export const NOTE_MAX_LENGTH = 500;
@@ -84,6 +84,16 @@ export const allergyProfileSchema = z.object({
   allergens: z.array(z.string().min(1).max(64)).max(40).optional(),
   guestName: z.string().max(80).optional(),
   guestPhone: guestPhoneSchema.optional(),
+  /**
+   * Answers to the villa's own intake questions, keyed by field id. Only the
+   * raw values arrive; the label stored beside each one is taken from the
+   * catalog server-side, so a guest cannot invent a question or reword one.
+   */
+  guestExtra: z.record(z.string().max(64), z.string().max(500)).optional(),
+});
+
+export const verifyBookingSchema = z.object({
+  phone: guestPhoneSchema,
 });
 
 export const placeOrderSchema = z.object({
@@ -222,6 +232,40 @@ export const allergenSchema = z.object({
   icon: z.string().max(16).default(''),
   is_active: z.boolean().default(true),
 });
+
+/**
+ * An extra question on the way in. Only the Thai label is insisted on: a villa
+ * that serves Thai guests should not be blocked from adding a question because
+ * it has no Chinese translation ready, and the guest app already falls back to
+ * Thai for any language left blank.
+ */
+export const guestFieldSchema = z
+  .object({
+    id: z.string().max(64).optional(),
+    // Spelled out rather than spread from localizedFields: the refinements
+    // below read these keys by name, and a computed spread erases them from
+    // the inferred type.
+    label_th: z.string().max(300).default(''),
+    label_en: z.string().max(300).default(''),
+    label_zh: z.string().max(300).default(''),
+    type: z.enum(GUEST_FIELD_TYPES),
+    options_th: z.string().max(600).default(''),
+    options_en: z.string().max(600).default(''),
+    options_zh: z.string().max(600).default(''),
+    required: z.boolean().default(false),
+    sort_order: z.number().int().min(0).max(9999).default(100),
+    is_active: z.boolean().default(true),
+  })
+  .refine((v) => v.label_th.trim().length > 0, {
+    message: 'ต้องตั้งชื่อฟิลด์ภาษาไทย',
+    path: ['label_th'],
+  })
+  // A select with no choices renders as a dropdown the guest cannot answer,
+  // which for a required question is a dead end they cannot get past.
+  .refine((v) => v.type !== 'select' || v.options_th.trim().length > 0, {
+    message: 'ชนิด "ตัวเลือก" ต้องมีรายการให้เลือกอย่างน้อย 1 รายการ',
+    path: ['options_th'],
+  });
 
 export const tableSchema = z.object({
   id: z.string().max(64).optional(),

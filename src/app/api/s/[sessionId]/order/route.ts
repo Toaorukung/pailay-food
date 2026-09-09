@@ -7,6 +7,7 @@ import { publicPayment } from '@/lib/snapshot';
 import { rateLimit } from '@/lib/ratelimit';
 import { placeOrderSchema, parseBody } from '@/lib/validation';
 import { handler, fail, ok } from '@/lib/api';
+import { verifyGuestBooking } from '@/lib/booking';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,22 @@ export const POST = handler(async (req: Request, { params }: Params) => {
   const { sessionId } = await params;
   const guard = await requireSession(req, sessionId);
   if (!guard.ok) return guardResponse(guard);
+
+  if (!guard.session.guestPhone) {
+    return fail(
+      'กรุณาเข้าสู่ระบบด้วยเบอร์โทรศัพท์ผู้เข้าพักก่อนส่งออเดอร์',
+      403,
+    );
+  }
+
+  const bookingCheck = await verifyGuestBooking(guard.session.guestPhone);
+  if (!bookingCheck.ok) {
+    return fail(
+      bookingCheck.error ??
+        'เบอร์โทรศัพท์ของคุณไม่อยู่ในช่วงวันเข้าพัก จึงไม่สามารถสั่งอาหารได้',
+      403,
+    );
+  }
 
   const limit = await rateLimit('order', sessionId);
   if (!limit.ok) return fail('สั่งอาหารถี่เกินไป กรุณารอสักครู่', 429);

@@ -78,6 +78,7 @@ const MAX_ATTEMPTS = 4;
 async function request<T>(
   path: string,
   init: RequestInit & { method: string },
+  targetSheetId: string = env.googleSheetId,
 ): Promise<T> {
   let lastError: unknown;
 
@@ -94,7 +95,7 @@ async function request<T>(
 
     let res: Response;
     try {
-      res = await fetch(`${API}/${env.googleSheetId}${path}`, {
+      res = await fetch(`${API}/${targetSheetId}${path}`, {
         ...init,
         headers: {
           Authorization: `Bearer ${token}`,
@@ -215,6 +216,19 @@ export async function addTabs(titles: string[]): Promise<void> {
       requests: titles.map((title) => ({ addSheet: { properties: { title } } })),
     }),
   });
+}
+
+/** Read a range from any spreadsheet by sheetId. */
+export async function getSheetValues(
+  sheetId: string,
+  range: string,
+): Promise<string[][]> {
+  const data = await request<{ values?: string[][] }>(
+    `/values/${encodeURIComponent(range)}?majorDimension=ROWS`,
+    { method: 'GET' },
+    sheetId,
+  );
+  return data.values ?? [];
 }
 
 export { SheetsError };
