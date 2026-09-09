@@ -93,7 +93,15 @@ export const allergyProfileSchema = z.object({
 });
 
 export const verifyBookingSchema = z.object({
-  phone: guestPhoneSchema,
+  phone: z
+    .string()
+    .trim()
+    .min(8, 'กรุณากรอกเบอร์โทรศัพท์')
+    .max(40)
+    .refine(
+      (s) => /^[0-9+\-() ]+$/.test(s) && s.replace(/\D/g, '').length >= 8,
+      { message: 'เบอร์โทรศัพท์ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง' },
+    ),
 });
 
 export const placeOrderSchema = z.object({

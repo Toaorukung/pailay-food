@@ -37,7 +37,11 @@ export const POST = handler(async (req: Request, { params }: Params) => {
     );
   }
 
-  const bookingCheck = await verifyGuestBooking(guard.session.guestPhone);
+  const bookingCheck = await verifyGuestBooking(
+    guard.session.guestPhone,
+    Date.now(),
+    guard.session.villa || guard.session.tableLabel,
+  );
   if (!bookingCheck.ok) {
     return fail(
       bookingCheck.error ??
