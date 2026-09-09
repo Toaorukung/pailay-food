@@ -14,6 +14,7 @@ import {
   FormInput,
   Home,
   Users,
+  UserCog,
   Settings,
   BarChart3,
   ScrollText,
@@ -65,6 +66,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'เจ้าของร้าน',
     items: [
+      { href: '/admin/users', label: 'จัดการผู้ใช้', icon: UserCog, minRole: 'OWNER' },
       { href: '/admin/settings', label: 'ตั้งค่า', icon: Settings, minRole: 'OWNER' },
       { href: '/admin/audit', label: 'ประวัติการแก้ไข', icon: ScrollText, minRole: 'OWNER' },
     ],

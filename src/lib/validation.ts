@@ -330,6 +330,55 @@ export const settingsSchema = z.object({
     .max(200),
 });
 
+export const createAdminUserSchema = z.object({
+  name: z.string().trim().min(1, 'กรุณากรอกชื่อผู้ใช้').max(80),
+  username: z
+    .string()
+    .trim()
+    .min(2, 'Username ต้องมีอย่างน้อย 2 ตัวอักษร')
+    .max(40)
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Username ใช้ได้เฉพาะตัวอักษรภาษาอังกฤษ ตัวเลข _ และ -'),
+  email: z
+    .string()
+    .trim()
+    .email('รูปแบบอีเมลไม่ถูกต้อง')
+    .or(z.literal(''))
+    .default(''),
+  password: z
+    .string()
+    .min(6, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร')
+    .max(100)
+    .or(z.literal(''))
+    .default(''),
+  role: z.enum(['OWNER', 'MANAGER', 'STAFF']).default('STAFF'),
+  isActive: z.boolean().default(true),
+});
+
+export const updateAdminUserSchema = z.object({
+  id: z.string().min(1, 'ต้องระบุ ID ผู้ใช้'),
+  name: z.string().trim().min(1, 'กรุณากรอกชื่อผู้ใช้').max(80),
+  username: z
+    .string()
+    .trim()
+    .min(2, 'Username ต้องมีอย่างน้อย 2 ตัวอักษร')
+    .max(40)
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Username ใช้ได้เฉพาะตัวอักษรภาษาอังกฤษ ตัวเลข _ และ -'),
+  email: z
+    .string()
+    .trim()
+    .email('รูปแบบอีเมลไม่ถูกต้อง')
+    .or(z.literal(''))
+    .default(''),
+  password: z
+    .string()
+    .min(6, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร')
+    .max(100)
+    .or(z.literal(''))
+    .optional(),
+  role: z.enum(['OWNER', 'MANAGER', 'STAFF']),
+  isActive: z.boolean(),
+});
+
 /** Parses a JSON body, returning a typed error instead of throwing. */
 export async function parseBody<T extends z.ZodTypeAny>(
   req: Request,
