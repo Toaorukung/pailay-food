@@ -27,3 +27,4 @@ next-env.d.ts
 .env*.local
 node.html
 run-test.ps1
+fix-git-windows.bat
