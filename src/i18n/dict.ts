@@ -174,6 +174,9 @@ export const STRINGS = {
     'entry.noVillas': 'ยังไม่มีบ้านที่เปิดรับออเดอร์ กรุณาติดต่อพนักงาน',
     'entry.failed': 'เปิดหน้าสั่งอาหารไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
     'entry.offline': 'เชื่อมต่อไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่',
+    'entry.changeVilla': 'เปลี่ยนวิลล่า',
+    'entry.loginBtn': 'เข้าสู่ระบบและเริ่มสั่งอาหาร',
+    'entry.selectedVilla': 'วิลล่าของคุณ',
 
     'order.status.PENDING_CONFIRM': 'รอพนักงานยืนยัน',
     'order.pendingHint':
@@ -367,6 +370,9 @@ export const STRINGS = {
     'entry.noVillas': 'No villa is taking orders right now. Please contact staff.',
     'entry.failed': 'Could not open the menu. Please try again.',
     'entry.offline': 'No connection. Check your internet and try again.',
+    'entry.changeVilla': 'Change Villa',
+    'entry.loginBtn': 'Log In & Start Ordering',
+    'entry.selectedVilla': 'Your Villa',
 
     'order.status.PENDING_CONFIRM': 'Waiting for staff',
     'order.pendingHint':
@@ -559,6 +565,9 @@ export const STRINGS = {
     'entry.noVillas': '目前没有别墅可以点餐，请联系工作人员。',
     'entry.failed': '打开菜单失败，请重试。',
     'entry.offline': '无法连接，请检查网络后重试。',
+    'entry.changeVilla': '更改别墅',
+    'entry.loginBtn': '登录并开始点餐',
+    'entry.selectedVilla': '您的别墅',
 
     'order.status.PENDING_CONFIRM': '等待工作人员确认',
     'order.pendingHint': '订单已送出，工作人员会核对后与您联系确认。',

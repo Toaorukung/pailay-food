@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { getTables } from '@/lib/tables';
 import { getCatalog } from '@/lib/menu-cache';
+import { cookieSessionId, getSession } from '@/lib/session';
 import { env } from '@/lib/env';
 import { I18nProvider } from '@/i18n/provider';
 import { parseLocale, LOCALE_COOKIE } from '@/i18n/locale';
@@ -26,6 +28,18 @@ export default async function OrderEntryPage({
   const params = searchParams ? await searchParams : {};
 
   const [catalog, tables] = await Promise.all([getCatalog(), getTables().catch(() => [])]);
+
+  // If the guest already logged in and holds an active OPEN session, resume directly
+  const sessionId = await cookieSessionId();
+  if (sessionId) {
+    const session = await getSession(sessionId);
+    if (session && session.status === 'OPEN' && session.guestPhone) {
+      const table = tables.find((t) => t.id === session.tableId);
+      if (table?.slug && (!params.villa || params.villa === table.slug)) {
+        redirect(`/${table.slug}/${session.id}`);
+      }
+    }
+  }
 
   const villas: EntryVilla[] = tables
     .filter((t) => t.isActive && t.slug)
