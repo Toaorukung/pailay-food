@@ -57,10 +57,10 @@ export function EntryFlow({
   // filled anything in yet. The fallback artwork counts, since that is what the
   // notice below actually falls back to.
   const showNotice =
-    catalog.settings.welcomeEnabled &&
-    (Boolean(catalog.settings.welcomeImage) ||
-      Boolean(catalog.settings.serviceNoticeImage) ||
-      Boolean(catalog.settings.serviceNotice.th.trim()));
+    Boolean(catalog?.settings?.welcomeEnabled) &&
+    (Boolean(catalog?.settings?.welcomeImage) ||
+      Boolean(catalog?.settings?.serviceNoticeImage) ||
+      Boolean(catalog?.settings?.serviceNotice?.th?.trim()));
 
   const matchedVilla = villas.find((v) => v.slug === defaultVilla);
   const [step, setStep] = useState<Step>(showNotice ? 'notice' : 'villa');

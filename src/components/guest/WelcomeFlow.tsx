@@ -16,8 +16,11 @@ const PHONE_ALLOWED = /^[0-9+\-() ]+$/;
 const EXTRA_MAX_LENGTH = 500;
 
 function optionsFor(field: GuestField, locale: Locale): string[] {
-  const own = field.options[locale];
-  return own.length > 0 ? own : field.options.th;
+  const own = field.options?.[locale];
+  if (Array.isArray(own) && own.length > 0) return own;
+  const th = field.options?.th;
+  if (Array.isArray(th) && th.length > 0) return th;
+  return [];
 }
 
 /**
@@ -38,44 +41,48 @@ export function WelcomeFlow({
   onStepChange,
   onDetailsSaved,
   sessionId,
-  guestName: initialName,
-  guestPhone: initialPhone,
-  fields,
-  guestExtra: initialExtra,
+  guestName: initialName = '',
+  guestPhone: initialPhone = '',
+  fields = [],
+  guestExtra: initialExtra = [],
   onSaved,
-  stepNumber,
-  totalSteps,
+  stepNumber = 1,
+  totalSteps = 1,
 }: {
   step: WelcomeStep | null;
   onStepChange: (step: WelcomeStep | null) => void;
   /** Phone verified and stay active — move on to the allergy question. */
   onDetailsSaved: () => void;
   sessionId: string;
-  guestName: string;
-  guestPhone: string;
+  guestName?: string;
+  guestPhone?: string;
   /** The villa's extra questions, already filtered to the active ones. */
-  fields: GuestField[];
+  fields?: GuestField[];
   /** Answers already on the session, so reopening the step is not a retype. */
-  guestExtra: GuestExtraAnswer[];
+  guestExtra?: GuestExtraAnswer[];
   onSaved: () => Promise<unknown>;
-  stepNumber: number;
-  totalSteps: number;
+  stepNumber?: number;
+  totalSteps?: number;
 }) {
+  const safeFields = Array.isArray(fields) ? fields : [];
+  const safeExtra = Array.isArray(initialExtra) ? initialExtra : [];
   const { t, locale } = useI18n();
-  const [phone, setPhone] = useState(initialPhone);
+  const [phone, setPhone] = useState(initialPhone || '');
   const [extra, setExtra] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (step === 'details') {
-      setPhone(initialPhone);
+      setPhone(initialPhone || '');
       setExtra(
-        Object.fromEntries(initialExtra.map((a) => [a.fieldId, a.value])),
+        Object.fromEntries(
+          safeExtra.map((a) => [a?.fieldId ?? '', a?.value ?? '']),
+        ),
       );
       setError(null);
     }
-  }, [step, initialPhone, initialExtra]);
+  }, [step, initialPhone, safeExtra]);
 
   async function loginAndVerify() {
     const trimmedPhone = phone.trim();
@@ -88,13 +95,13 @@ export function WelcomeFlow({
       return setError(t('guest.phoneInvalid'));
     }
 
-    const missing = fields.find(
+    const missing = safeFields.find(
       (f) => f.required && !(extra[f.id] ?? '').trim(),
     );
     if (missing) {
       return setError(
         t('guest.fieldRequired', {
-          label: missing.label[locale] || missing.label.th,
+          label: missing.label?.[locale] || missing.label?.th || '',
         }),
       );
     }
@@ -114,12 +121,12 @@ export function WelcomeFlow({
     }
 
     // 2. Save any extra villa questions if present
-    if (fields.length > 0) {
+    if (safeFields.length > 0) {
       await guestApi.saveGuest(sessionId, {
         guestName: res.data.guestName,
         guestPhone: res.data.guestPhone,
         guestExtra: Object.fromEntries(
-          fields.map((f) => [f.id, (extra[f.id] ?? '').trim()]),
+          safeFields.map((f) => [f.id, (extra[f.id] ?? '').trim()]),
         ),
       });
     }
@@ -177,12 +184,12 @@ export function WelcomeFlow({
             enterKeyHint="done"
             autoFocus
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && fields.length === 0) loginAndVerify();
+              if (e.key === 'Enter' && safeFields.length === 0) loginAndVerify();
             }}
           />
         </Field>
 
-        {fields.map((field) => (
+        {safeFields.map((field) => (
           <ExtraField
             key={field.id}
             field={field}

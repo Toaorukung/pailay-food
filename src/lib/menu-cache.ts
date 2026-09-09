@@ -40,6 +40,18 @@ export async function getCatalog(): Promise<MenuCatalog> {
     .catch(() => null);
 
   if (entry?.catalog) {
+    if (!Array.isArray(entry.catalog.guestFields)) {
+      entry.catalog.guestFields = [];
+    }
+    if (!Array.isArray(entry.catalog.allergens)) {
+      entry.catalog.allergens = [];
+    }
+    if (!Array.isArray(entry.catalog.categories)) {
+      entry.catalog.categories = [];
+    }
+    if (!Array.isArray(entry.catalog.items)) {
+      entry.catalog.items = [];
+    }
     memo = { entry, readAt: now };
     if (entry.staleAt > now) return entry.catalog;
 

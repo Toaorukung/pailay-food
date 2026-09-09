@@ -28,28 +28,28 @@ export function AllergyDialog({
   onOpenChange: (open: boolean) => void;
   catalog: MenuCatalog;
   sessionId: string;
-  current: string[];
-  guestName: string;
-  guestPhone: string;
+  current?: string[];
+  guestName?: string;
+  guestPhone?: string;
   onSaved: () => Promise<unknown>;
   showIdentity?: boolean;
   /** "Step 3 of 3", when this is the last step of the opening flow. */
   stepLabel?: string;
 }) {
   const { t, L } = useI18n();
-  const [selected, setSelected] = useState<string[]>(current);
+  const [selected, setSelected] = useState<string[]>(Array.isArray(current) ? current : []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Re-sync when reopened after an edit elsewhere.
   useEffect(() => {
     if (open) {
-      setSelected(current);
+      setSelected(Array.isArray(current) ? current : []);
       setError(null);
     }
   }, [open, current]);
 
-  const allergens = catalog.allergens.filter((a) => a.isActive);
+  const allergens = (catalog?.allergens ?? []).filter((a) => a.isActive);
 
   async function save(list: string[]) {
     setBusy(true);

@@ -152,13 +152,13 @@ export function GuestApp({
     // thing on /order, before the guest has even picked a villa, so repeating
     // them here would be the same poster twice in thirty seconds.
     const steps: FlowStep[] = ['details'];
-    if (catalog.allergens.some((a) => a.isActive)) steps.push('allergy');
+    if ((catalog?.allergens ?? []).some((a) => a.isActive)) steps.push('allergy');
     return steps;
-  }, [catalog.allergens]);
+  }, [catalog?.allergens]);
 
   // The phone number is what marks a session as introduced: it is the one
   // answer the flow insists on, so a session holding one has been through it.
-  const introduced = Boolean(snapshot.session.guestPhone);
+  const introduced = Boolean(snapshot?.session?.guestPhone);
   const flowStarted = useRef(false);
 
   useEffect(() => {
@@ -173,8 +173,8 @@ export function GuestApp({
   const inAllergyStep = flowStep === 'allergy';
   const stepNumber = flowStep ? flowSteps.indexOf(flowStep) + 1 : 1;
 
-  const cartCount = snapshot.cart.lines.reduce((n, l) => n + l.qty, 0);
-  const activeOrders = snapshot.orders.filter(
+  const cartCount = snapshot?.cart?.lines?.reduce((n, l) => n + l.qty, 0) ?? 0;
+  const activeOrders = (snapshot?.orders ?? []).filter(
     (o) =>
       o.status === 'PENDING_CONFIRM' ||
       o.status === 'NEW' ||
@@ -182,12 +182,12 @@ export function GuestApp({
   ).length;
 
   const allergenNames = useMemo(() => {
-    const byId = new Map(catalog.allergens.map((a) => [a.id, a]));
-    return snapshot.session.allergyProfile
+    const byId = new Map((catalog?.allergens ?? []).map((a) => [a.id, a]));
+    return (snapshot?.session?.allergyProfile ?? [])
       .map((id) => byId.get(id))
       .filter((a): a is NonNullable<typeof a> => Boolean(a))
       .map((a) => a.name[locale] || a.name.th);
-  }, [catalog.allergens, snapshot.session.allergyProfile, locale]);
+  }, [catalog?.allergens, snapshot?.session?.allergyProfile, locale]);
 
   const tabs: { id: Tab; icon: typeof UtensilsCrossed; label: string; badge?: number }[] = [
     { id: 'menu', icon: UtensilsCrossed, label: t('nav.menu') },
@@ -371,10 +371,10 @@ export function GuestApp({
           setFlowStep(flowSteps.includes('allergy') ? 'allergy' : null)
         }
         sessionId={sessionId}
-        guestName={snapshot.session.guestName}
-        guestPhone={snapshot.session.guestPhone}
-        fields={catalog.guestFields}
-        guestExtra={snapshot.session.guestExtra}
+        guestName={snapshot?.session?.guestName ?? ''}
+        guestPhone={snapshot?.session?.guestPhone ?? ''}
+        fields={catalog?.guestFields ?? []}
+        guestExtra={snapshot?.session?.guestExtra ?? []}
         onSaved={refresh}
         stepNumber={stepNumber}
         totalSteps={flowSteps.length}
@@ -388,9 +388,9 @@ export function GuestApp({
         }}
         catalog={catalog}
         sessionId={sessionId}
-        current={snapshot.session.allergyProfile}
-        guestName={snapshot.session.guestName}
-        guestPhone={snapshot.session.guestPhone}
+        current={snapshot?.session?.allergyProfile ?? []}
+        guestName={snapshot?.session?.guestName ?? ''}
+        guestPhone={snapshot?.session?.guestPhone ?? ''}
         onSaved={refresh}
         showIdentity={!inAllergyStep}
         stepLabel={

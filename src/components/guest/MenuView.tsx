@@ -43,7 +43,7 @@ export function MenuView({
     [catalog],
   );
 
-  const profile = snapshot.session.allergyProfile;
+  const profile = snapshot?.session?.allergyProfile ?? [];
 
   const results = useMemo(() => {
     let items = catalog.items;
