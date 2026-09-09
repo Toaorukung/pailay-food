@@ -354,19 +354,9 @@ export async function loadAdminUsers(): Promise<AdminUser[]> {
   const res = await batchGet([range]);
   return toObjects(res[range] ?? [])
     .rows.filter((r) => r.id)
-    .map((r) => ({
-      id: r.id,
-      email: (r.email ?? '').toLowerCase(),
-      username: (r.username ?? '').toLowerCase(),
-      passwordHash: r.password_hash ?? '',
-      name: r.name || r.username || r.email,
-      role: (['OWNER', 'MANAGER', 'STAFF'].includes(r.role)
     .map((r) => {
       const role = (['OWNER', 'MANAGER', 'STAFF'].includes(r.role)
         ? r.role
-        : 'STAFF') as AdminRole,
-      isActive: bool(r.is_active, true),
-    }));
         : 'STAFF') as AdminRole;
       const rawPerms = (r.permissions || '').trim();
       const permissions = rawPerms

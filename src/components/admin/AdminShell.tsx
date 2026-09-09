@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { ThemeToggle } from '@/components/theme';
-import { hasRole, type AdminRole } from '@/lib/types';
 import { hasRole, hasPermission, type AdminRole, type PermissionId } from '@/lib/types';
 import type { AdminSession } from '@/lib/admin/auth';
 
@@ -32,7 +31,6 @@ interface NavItem {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
-  minRole: AdminRole;
   minRole?: AdminRole;
   permission?: PermissionId;
 }
@@ -46,14 +44,9 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'ระหว่างให้บริการ',
     items: [
-      { href: '/admin', label: 'ภาพรวม', icon: LayoutDashboard, minRole: 'STAFF' },
       { href: '/admin', label: 'ภาพรวม', icon: LayoutDashboard },
       // Sits before the kitchen deliberately: nothing reaches the kitchen
       // until somebody has been through this screen with the guest.
-      { href: '/admin/pending', label: 'รอคอนเฟิร์ม', icon: ClipboardCheck, minRole: 'STAFF' },
-      { href: '/admin/orders', label: 'ครัว / ออเดอร์', icon: ChefHat, minRole: 'STAFF' },
-      { href: '/admin/payments', label: 'อัปโหลดสลิป', icon: Wallet, minRole: 'STAFF' },
-      { href: '/admin/sessions', label: 'เซสชัน', icon: Users, minRole: 'STAFF' },
       { href: '/admin/pending', label: 'รอคอนเฟิร์ม', icon: ClipboardCheck, permission: 'pending' },
       { href: '/admin/orders', label: 'ครัว / ออเดอร์', icon: ChefHat, permission: 'orders' },
       { href: '/admin/payments', label: 'อัปโหลดสลิป', icon: Wallet, permission: 'payments' },
@@ -63,12 +56,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'จัดการร้าน',
     items: [
-      { href: '/admin/menu', label: 'เมนู', icon: UtensilsCrossed, minRole: 'MANAGER' },
-      { href: '/admin/categories', label: 'หมวดหมู่', icon: Tags, minRole: 'MANAGER' },
-      { href: '/admin/allergens', label: 'สารก่อภูมิแพ้', icon: TriangleAlert, minRole: 'MANAGER' },
-      { href: '/admin/guest-fields', label: 'คำถามตอนเริ่มสั่ง', icon: FormInput, minRole: 'MANAGER' },
-      { href: '/admin/tables', label: 'วิลล่า', icon: Home, minRole: 'MANAGER' },
-      { href: '/admin/reports', label: 'รายงาน', icon: BarChart3, minRole: 'MANAGER' },
       { href: '/admin/menu', label: 'เมนู', icon: UtensilsCrossed, permission: 'menu' },
       { href: '/admin/categories', label: 'หมวดหมู่', icon: Tags, permission: 'categories' },
       { href: '/admin/allergens', label: 'สารก่อภูมิแพ้', icon: TriangleAlert, permission: 'allergens' },
@@ -80,9 +67,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'เจ้าของร้าน',
     items: [
-      { href: '/admin/users', label: 'จัดการผู้ใช้', icon: UserCog, minRole: 'OWNER' },
-      { href: '/admin/settings', label: 'ตั้งค่า', icon: Settings, minRole: 'OWNER' },
-      { href: '/admin/audit', label: 'ประวัติการแก้ไข', icon: ScrollText, minRole: 'OWNER' },
       { href: '/admin/users', label: 'จัดการผู้ใช้', icon: UserCog, minRole: 'OWNER', permission: 'users' },
       { href: '/admin/settings', label: 'ตั้งค่า', icon: Settings, minRole: 'OWNER', permission: 'settings' },
       { href: '/admin/audit', label: 'ประวัติการแก้ไข', icon: ScrollText, minRole: 'OWNER', permission: 'audit' },
@@ -118,12 +102,9 @@ export function AdminShell({
   // just asked for.
   useEffect(() => setOpen(false), [pathname]);
 
-  // The nav only shows what this role can reach. The API enforces the same
-  // boundary independently — hiding a link is presentation, not security.
   // The nav only shows what this user has permission to reach.
   const groups = NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => hasRole(admin.role, item.minRole)),
     items: group.items.filter((item) => {
       if (admin.role === 'OWNER') return true;
       if (item.minRole && !hasRole(admin.role, item.minRole)) return false;

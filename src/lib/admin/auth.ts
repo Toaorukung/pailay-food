@@ -5,7 +5,6 @@ import { kv, K } from '../kv';
 import { loadAdminUsers } from '../sheets/repo';
 import { verifyPassword } from './password';
 import { rateLimit } from '../ratelimit';
-import { hasRole, type AdminRole, type AdminUser } from '../types';
 import {
   hasRole,
   hasPermission,
@@ -83,7 +82,6 @@ async function verifyToken(token: string | undefined): Promise<AdminSession | nu
       issuer: ISSUER,
       audience: AUDIENCE,
     });
-    const { id, email, name, role, via } = payload as Record<string, unknown>;
     const { id, email, name, role, via, permissions } = payload as Record<string, unknown>;
     if (typeof id !== 'string' || typeof email !== 'string') return null;
     if (role !== 'OWNER' && role !== 'MANAGER' && role !== 'STAFF') return null;
