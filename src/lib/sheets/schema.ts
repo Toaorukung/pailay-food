@@ -192,3 +192,33 @@ export function list(v: string | undefined): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
 }
+
+export const DEFAULT_GUEST_FIELD_ROWS: RawRow[] = [
+  {
+    id: 'gf-name',
+    label_th: 'ชื่อผู้สั่ง',
+    label_en: 'Name',
+    label_zh: '姓名',
+    type: 'text',
+    options_th: '',
+    options_en: '',
+    options_zh: '',
+    required: 'TRUE',
+    sort_order: '10',
+    is_active: 'TRUE',
+  },
+  {
+    id: 'gf-phone',
+    label_th: 'เบอร์โทรศัพท์',
+    label_en: 'Phone number',
+    label_zh: '电话号码',
+    type: 'tel',
+    options_th: '',
+    options_en: '',
+    options_zh: '',
+    required: 'TRUE',
+    sort_order: '20',
+    is_active: 'TRUE',
+  },
+];
+

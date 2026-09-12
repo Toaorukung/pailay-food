@@ -76,7 +76,7 @@ export default function GuestFieldsPage() {
     <ContentManager
       endpoint="guest-fields"
       title="คำถามตอนแขกเริ่มสั่ง"
-      description='คำถามเพิ่มเติมในป๊อปอัพขั้นตอนที่ 1 ต่อจากชื่อและเบอร์โทร — คำตอบจะไปโผล่ในหน้าเซสชันและหน้ารอคอนเฟิร์ม ชื่อและเบอร์โทรเป็นช่องมาตรฐาน ลบไม่ได้'
+      description="คำถามที่แสดงในป๊อปอัพตอนแขกเริ่มสั่งอาหาร — มีชื่อผู้สั่งและเบอร์โทรเป็นค่าเริ่มต้น สามารถแก้ไขชื่อ บังคับกรอก ลำดับ หรือลบออกได้ตามต้องการ"
       fields={FIELDS}
       labelOf={(row) => row.label_th || row.label_en || row.id}
       searchOf={(row) => [row.label_th, row.label_en, row.label_zh].join(' ')}
@@ -86,7 +86,7 @@ export default function GuestFieldsPage() {
           row.required === 'TRUE' ? 'บังคับกรอก' : 'ไม่บังคับ',
         ].join(' · ')
       }
-      emptyHint="ยังไม่มีคำถามเพิ่มเติม แขกจะถูกถามแค่ชื่อกับเบอร์โทร"
+      emptyHint="ยังไม่มีคำถามในฟอร์ม แขกจะสามารถเข้าดูเมนูได้ทันที"
     />
   );
 }

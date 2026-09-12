@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Globe, Home, TriangleAlert, ChevronRight, Phone } from 'lucide-react';
+import { Globe, Home, TriangleAlert, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/i18n/provider';
 import { LOCALE_LABELS } from '@/i18n/dict';
-import { Button, Spinner, Input, Field, cn } from '@/components/ui';
+import { Button, Spinner, cn } from '@/components/ui';
 import { ThemeToggle } from '@/components/theme';
 import { LOCALES, type Locale, type MenuCatalog } from '@/lib/types';
 import { NoticeContent } from './ServiceNotice';
@@ -17,7 +17,7 @@ export interface EntryVilla {
   villa: string;
 }
 
-type Step = 'notice' | 'villa' | 'login';
+type Step = 'notice' | 'villa';
 
 /**
  * The way in, now that nobody scans anything.
@@ -26,10 +26,9 @@ type Step = 'notice' | 'villa' | 'login';
  * The order of the steps:
  * 1. Conditions/notice (if enabled) are shown before anything else.
  * 2. Villa selection (if not already preselected by link).
- * 3. Guest login using their booking phone number.
  *
- * Sessions are ONLY created after successful verification against the
- * resort's master Google Sheet (บันทึกการจอง).
+ * Name, phone and allergies follow inside the app itself, on the session that
+ * this screen creates.
  */
 export function EntryFlow({
   catalog,
@@ -57,30 +56,15 @@ export function EntryFlow({
       Boolean(catalog?.settings?.serviceNotice?.th?.trim()));
 
   const matchedVilla = villas.find((v) => v.slug === defaultVilla);
-  const [selectedVilla, setSelectedVilla] = useState<EntryVilla | null>(matchedVilla ?? null);
-  const [phone, setPhone] = useState('');
-  const [step, setStep] = useState<Step>(
-    showNotice ? 'notice' : matchedVilla ? 'login' : 'villa',
-  );
+  const [step, setStep] = useState<Step>(showNotice ? 'notice' : 'villa');
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A double tap on a slow connection would otherwise fire two /api/enter
   // calls and two navigations.
   const entering = useRef(false);
 
-  useEffect(() => {
-    if (step === 'login' && !selectedVilla) {
-      setStep('villa');
-    }
-  }, [step, selectedVilla]);
-
-  async function enter(slug: string, guestPhone: string) {
+  async function enter(slug: string) {
     if (entering.current) return;
-    const digits = guestPhone.replace(/\D/g, '');
-    if (digits.length < 8) {
-      setError(t('guest.phoneInvalid'));
-      return;
-    }
     entering.current = true;
     setOpening(slug);
     setError(null);
@@ -89,11 +73,7 @@ export function EntryFlow({
       const res = await fetch('/api/enter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          villa: slug,
-          phone: guestPhone.trim(),
-          idToken: idToken ?? undefined,
-        }),
+        body: JSON.stringify({ villa: slug, idToken: idToken ?? undefined }),
         cache: 'no-store',
       });
       const data = (await res.json()) as { sessionId?: string; error?: string };
@@ -119,14 +99,10 @@ export function EntryFlow({
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[17px] font-bold leading-tight tracking-tight">
-              {catalog.settings.shopName}
+              {catalog?.settings?.shopName ?? 'ร้านอาหาร'}
             </p>
             <p className="truncate text-xs text-white/75">
-              {step === 'notice'
-                ? t('notice.title')
-                : step === 'login'
-                ? t('guest.loginTitle')
-                : t('entry.chooseVilla')}
+              {step === 'notice' ? t('notice.title') : t('entry.chooseVilla')}
             </p>
           </div>
 
@@ -153,10 +129,7 @@ export function EntryFlow({
       <main className="flex-1 space-y-4 px-4 pb-8 pt-4">
         {showNotice && (
           <p className="text-xs font-semibold text-[var(--brand)]">
-            {t('welcome.step', {
-              n: step === 'notice' ? 1 : step === 'villa' ? 2 : matchedVilla ? 2 : 3,
-              total: matchedVilla ? 2 : 3,
-            })}
+            {t('welcome.step', { n: step === 'notice' ? 1 : 2, total: 2 })}
           </p>
         )}
 
@@ -170,7 +143,8 @@ export function EntryFlow({
             <NoticeContent
               catalog={catalog}
               image={
-                catalog.settings.welcomeImage || catalog.settings.serviceNoticeImage
+                catalog?.settings?.welcomeImage ||
+                catalog?.settings?.serviceNoticeImage
               }
               imageAlt={t('welcome.imageAlt')}
             />
@@ -181,8 +155,7 @@ export function EntryFlow({
               loading={opening !== null}
               onClick={() => {
                 if (matchedVilla) {
-                  setSelectedVilla(matchedVilla);
-                  setStep('login');
+                  enter(matchedVilla.slug);
                 } else {
                   setStep('villa');
                 }
@@ -191,7 +164,7 @@ export function EntryFlow({
               {t('notice.ack')}
             </Button>
           </>
-        ) : step === 'villa' ? (
+        ) : (
           <>
             <div>
               <h1 className="text-lg font-bold">{t('entry.chooseVilla')}</h1>
@@ -206,17 +179,12 @@ export function EntryFlow({
             ) : (
               <ul className="space-y-2">
                 {villas.map((villa) => {
-                  const isPreselected =
-                    villa.slug === defaultVilla || villa.slug === selectedVilla?.slug;
+                  const isPreselected = villa.slug === defaultVilla;
                   return (
                     <li key={villa.slug}>
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedVilla(villa);
-                          setError(null);
-                          setStep('login');
-                        }}
+                        onClick={() => enter(villa.slug)}
                         disabled={opening !== null}
                         className={cn(
                           'flex w-full items-center gap-3 rounded-2xl border',
@@ -241,7 +209,11 @@ export function EntryFlow({
                             </span>
                           )}
                         </span>
-                        <ChevronRight className="size-5 shrink-0 muted" />
+                        {opening === villa.slug ? (
+                          <Spinner className="size-5 shrink-0" />
+                        ) : (
+                          <ChevronRight className="size-5 shrink-0 muted" />
+                        )}
                       </button>
                     </li>
                   );
@@ -250,127 +222,14 @@ export function EntryFlow({
             )}
 
             {showNotice && (
-              <Button
-                variant="secondary"
-                full
-                onClick={() => {
-                  setError(null);
-                  setStep('notice');
-                }}
-              >
+              <Button variant="secondary" full onClick={() => setStep('notice')}>
                 {t('common.back')}
               </Button>
             )}
           </>
-        ) : (
-          /* step === 'login' */
-          selectedVilla && (
-            <div className="space-y-4">
-              <div>
-                <h1 className="text-lg font-bold">{t('guest.loginTitle')}</h1>
-                <p className="text-sm muted">{t('guest.loginIntro')}</p>
-              </div>
-
-              {/* Selected Villa Badge */}
-              <div className="flex items-center justify-between rounded-2xl border border-[var(--brand)] bg-[var(--brand-soft)]/20 p-3.5 shadow-sm">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand-soft-text)]">
-                    <Home className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-[var(--brand-soft-text)]">
-                      {t('entry.selectedVilla')}
-                    </p>
-                    <p className="truncate font-bold text-[var(--text)]">
-                      {selectedVilla.villa || selectedVilla.label}
-                    </p>
-                    {selectedVilla.villa &&
-                      selectedVilla.label !== selectedVilla.villa && (
-                        <p className="truncate text-xs muted">
-                          {selectedVilla.label}
-                        </p>
-                      )}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setStep('villa');
-                  }}
-                  disabled={opening !== null}
-                  className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[var(--brand)] hover:bg-[var(--brand-soft)]/40 transition-colors"
-                >
-                  {t('entry.changeVilla')}
-                </button>
-              </div>
-
-              {/* Phone Login Form */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  enter(selectedVilla.slug, phone);
-                }}
-                className="space-y-4"
-              >
-                <Field
-                  label={t('guest.phone')}
-                  hint={t('guest.phoneRequired')}
-                >
-                  <div className="relative">
-                    <Phone className="pointer-events-none absolute left-3.5 top-1/2 size-4.5 -translate-y-1/2 text-[var(--text-subtle)]" />
-                    <Input
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      autoFocus
-                      required
-                      disabled={opening !== null}
-                      placeholder={t('guest.phonePlaceholder')}
-                      value={phone}
-                      onChange={(e) => {
-                        setPhone(e.target.value);
-                        if (error) setError(null);
-                      }}
-                      className="pl-10 text-base font-medium tracking-wide"
-                    />
-                  </div>
-                </Field>
-
-                {error && (
-                  <p className="rounded-xl bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">
-                    {error}
-                  </p>
-                )}
-
-                <Button
-                  type="submit"
-                  full
-                  size="lg"
-                  loading={opening !== null}
-                  disabled={phone.replace(/\D/g, '').length < 8}
-                >
-                  {t('entry.loginBtn')}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="secondary"
-                  full
-                  disabled={opening !== null}
-                  onClick={() => {
-                    setError(null);
-                    setStep('villa');
-                  }}
-                >
-                  {t('entry.changeVilla')}
-                </Button>
-              </form>
-            </div>
-          )
         )}
 
-        {step !== 'login' && error && (
+        {error && (
           <p className="rounded-xl bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">
             {error}
           </p>

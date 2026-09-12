@@ -131,6 +131,27 @@ export interface GuestField {
   isActive: boolean;
 }
 
+export const DEFAULT_GUEST_FIELDS: GuestField[] = [
+  {
+    id: 'gf-name',
+    label: { th: 'ชื่อผู้สั่ง', en: 'Name', zh: '姓名' },
+    type: 'text',
+    options: { th: [], en: [], zh: [] },
+    required: true,
+    sortOrder: 10,
+    isActive: true,
+  },
+  {
+    id: 'gf-phone',
+    label: { th: 'เบอร์โทรศัพท์', en: 'Phone number', zh: '电话号码' },
+    type: 'tel',
+    options: { th: [], en: [], zh: [] },
+    required: true,
+    sortOrder: 20,
+    isActive: true,
+  },
+];
+
 /**
  * One answer, with the question as it was worded when it was asked.
  *

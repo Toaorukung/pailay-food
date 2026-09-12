@@ -15,6 +15,7 @@ import type {
   PublicSettings,
   VillaTable,
 } from '../lib/types';
+import { DEFAULT_GUEST_FIELDS } from '../lib/types';
 
 /**
  * The printed menu, compiled into the app.
@@ -162,9 +163,8 @@ export function bundledCatalog(version: number): MenuCatalog {
     categories,
     allergens,
     items,
-    // Extra intake questions are a villa's own configuration, so the bundled
-    // fallback ships none: name and phone are asked either way.
-    guestFields: [],
+    // Intake questions with default name and phone
+    guestFields: DEFAULT_GUEST_FIELDS,
     settings,
   };
 }

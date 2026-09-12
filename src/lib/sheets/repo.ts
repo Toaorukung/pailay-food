@@ -18,7 +18,8 @@ import type {
   PublicSettings,
   VillaTable,
 } from '../types';
-import { GUEST_FIELD_TYPES } from '../types';
+import { GUEST_FIELD_TYPES, DEFAULT_GUEST_FIELDS } from '../types';
+import { kv } from '../kv';
 
 function loc(r: RawRow, prefix: string): Localized {
   return {
@@ -166,9 +167,13 @@ async function loadGuestFields(): Promise<GuestField[]> {
   const range = fullRange(TABS.GuestFields);
   try {
     const res = await batchGet([range]);
-    return guestFieldsFrom(toObjects(res[range] ?? []).rows);
+    const fields = guestFieldsFrom(toObjects(res[range] ?? []).rows);
+    if (fields.length > 0) return fields;
+    const seeded = await kv().get('sheet:guest-fields:seeded').catch(() => null);
+    return seeded ? [] : DEFAULT_GUEST_FIELDS;
   } catch {
-    return [];
+    const seeded = await kv().get('sheet:guest-fields:seeded').catch(() => null);
+    return seeded ? [] : DEFAULT_GUEST_FIELDS;
   }
 }
 
