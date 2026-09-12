@@ -59,9 +59,13 @@ export const POST = handler(async (req: Request) => {
     // never fails the request: the ticket is confirmed either way, and a
     // member of staff can ring a guest whose message did not arrive.
     const catalog = await getCatalog();
-    const notified = await pushOrderConfirmed(result.order, catalog.settings);
+    const lineResult = await pushOrderConfirmed(result.order, catalog.settings);
 
-    return ok({ order: result.order, notified });
+    return ok({
+      order: result.order,
+      notified: lineResult.ok,
+      lineError: lineResult.error,
+    });
   }
 
   if (action === 'cancel') {

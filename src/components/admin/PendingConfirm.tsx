@@ -74,7 +74,7 @@ export function PendingConfirm({ catalog: initialCatalog }: { catalog?: MenuCata
   async function act(order: Order, action: 'confirm' | 'cancel') {
     setBusy(order.id);
     setError(null);
-    const res = await adminFetch<{ notified?: boolean }>(
+    const res = await adminFetch<{ notified?: boolean; lineError?: string }>(
       `/api/admin/orders?action=${action}`,
       { method: 'POST', body: JSON.stringify({ orderId: order.id }) },
     );
@@ -85,7 +85,7 @@ export function PendingConfirm({ catalog: initialCatalog }: { catalog?: MenuCata
       // Not an error — the ticket is confirmed either way — but staff have to
       // know the guest was not told, so they can say so on the phone.
       setError(
-        `ยืนยันออเดอร์ ${order.id} แล้ว แต่ส่งข้อความแจ้งทาง LINE ไม่ได้ กรุณาแจ้งลูกค้าทางโทรศัพท์`,
+        `ยืนยันออเดอร์ ${order.id} แล้ว แต่ส่งข้อความแจ้งทาง LINE ไม่ได้: ${res.data.lineError || 'กรุณาแจ้งลูกค้าทางโทรศัพท์'}`,
       );
     }
     clearNew();

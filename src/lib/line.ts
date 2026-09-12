@@ -79,10 +79,14 @@ export async function verifyLineIdToken(
   }
 }
 
-/** Fire-and-forget push. Returns whether LINE accepted it. */
-export async function pushText(userId: string, text: string): Promise<boolean> {
+/** Fire-and-forget push. Returns detailed outcome so UI can show exact error. */
+export async function pushTextDetailed(
+  userId: string,
+  text: string,
+): Promise<{ ok: boolean; error?: string }> {
   const token = env.lineChannelToken;
-  if (!token || !userId) return false;
+  if (!token) return { ok: false, error: 'ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN บน Vercel' };
+  if (!userId) return { ok: false, error: 'ไม่มี LINE User ID ของลูกค้า' };
 
   try {
     const res = await fetch(PUSH_URL, {
@@ -102,14 +106,20 @@ export async function pushText(userId: string, text: string): Promise<boolean> {
     });
 
     if (!res.ok) {
-      console.error('[line] push failed', res.status, await res.text());
-      return false;
+      const errText = await res.text();
+      console.error('[line] push failed', res.status, errText);
+      return { ok: false, error: `LINE API (${res.status}): ${errText}` };
     }
-    return true;
+    return { ok: true };
   } catch (err) {
     console.error('[line] push failed', err);
-    return false;
+    return { ok: false, error: `Network error: ${err instanceof Error ? err.message : String(err)}` };
   }
+}
+
+export async function pushText(userId: string, text: string): Promise<boolean> {
+  const res = await pushTextDetailed(userId, text);
+  return res.ok;
 }
 
 const CONFIRMED_HEADING: Record<Locale, string> = {
@@ -171,7 +181,8 @@ export function confirmationText(
 export async function pushOrderConfirmed(
   order: Order,
   settings: MenuCatalog['settings'],
-): Promise<boolean> {
-  if (!order.lineUserId || !linePushConfigured()) return false;
-  return pushText(order.lineUserId, confirmationText(order, settings));
+): Promise<{ ok: boolean; error?: string }> {
+  if (!order.lineUserId) return { ok: false, error: 'ไม่มี LINE UID ในออเดอร์นี้' };
+  if (!linePushConfigured()) return { ok: false, error: 'ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN บน Vercel' };
+  return pushTextDetailed(order.lineUserId, confirmationText(order, settings));
 }
