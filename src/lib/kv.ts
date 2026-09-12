@@ -82,7 +82,6 @@ export const K = {
   menu: k('menu:cache'),
   menuVersion: k('menu:version'),
   tables: k('tables:cache'),
-  bookings: k('bookings:cache'),
   session: (id: string) => k(`sess:${id}`),
   tableOpenSession: (tableId: string) => k(`table:open:${tableId}`),
   cart: (sessionId: string) => k(`cart:${sessionId}`),

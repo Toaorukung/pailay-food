@@ -53,12 +53,6 @@ export const env = {
   get googleSheetId() {
     return read('GOOGLE_SHEET_ID');
   },
-  get bookingSheetId() {
-    return readOptional('BOOKING_SHEET_ID', '1N0zTpKMuuQSo7T29nk8pmjioV6D4obu09F3lgd8ycq0');
-  },
-  get bookingSheetTab() {
-    return readOptional('BOOKING_SHEET_TAB', 'บันทึกการจอง');
-  },
   /**
    * Vercel's Upstash integration injects KV_REST_API_URL / KV_REST_API_TOKEN,
    * while a hand-configured Upstash database uses the UPSTASH_ names. Accept

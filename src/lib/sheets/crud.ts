@@ -1,4 +1,4 @@
-import { batchGet, batchUpdate, append, listTabs, SheetsError } from './client';
+import { batchGet, batchUpdate, append, listTabs, addTabs, SheetsError } from './client';
 import {
   HEADERS,
   TABS,
@@ -7,6 +7,7 @@ import {
   fullRange,
   toObjects,
   toRow,
+  DEFAULT_GUEST_FIELD_ROWS,
   type RawRow,
   type TabName,
 } from './schema';
@@ -28,16 +29,80 @@ function idColumn(tab: TabName): string {
   return HEADERS[tab][0];
 }
 
+/** Tab title -> numeric sheetId, needed for structural edits. Cached. */
+let tabIdCache: Map<string, number> | null = null;
+
 interface TabSnapshot {
   rows: RawRow[];
   /** id -> 1-based spreadsheet row number. */
   rowNumbers: Map<string, number>;
 }
 
+export async function ensureTab(tab: TabName): Promise<void> {
+  try {
+    const tabs = await listTabs();
+    if (!tabs.some((t) => t.title === tab)) {
+      await addTabs([tab]);
+      tabIdCache = null;
+      if (HEADERS[tab]) {
+        await append(`${tab}!A1`, [HEADERS[tab]]);
+        if (tab === TABS.GuestFields) {
+          const defaultRows = DEFAULT_GUEST_FIELD_ROWS.map((r) =>
+            toRow(TABS.GuestFields, r),
+          );
+          await append(appendRange(TABS.GuestFields), defaultRows);
+          await kv().set('sheet:guest-fields:seeded', '1').catch(() => {});
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`[sheets] Failed to ensure tab ${tab}:`, err);
+  }
+}
+
 async function readTab(tab: TabName): Promise<TabSnapshot> {
   const range = fullRange(tab);
-  const res = await batchGet([range]);
-  const values = res[range] ?? [];
+  let values: string[][] = [];
+  try {
+    const res = await batchGet([range]);
+    values = res[range] ?? [];
+  } catch (err) {
+    if (err instanceof SheetsError && err.status === 400) {
+      // Tab missing in spreadsheet (e.g. GuestFields) — ensure tab in background & return empty
+      // Tab missing in spreadsheet (e.g. GuestFields) — ensure tab with defaults & return defaults
+      ensureTab(tab).catch(() => {});
+      if (tab === TABS.GuestFields) {
+        const defaultRows = DEFAULT_GUEST_FIELD_ROWS;
+        const rowNumbers = new Map<string, number>();
+        defaultRows.forEach((r, idx) => rowNumbers.set(r.id, idx + 2));
+        return { rows: defaultRows, rowNumbers };
+      }
+      return { rows: [], rowNumbers: new Map() };
+    }
+    throw err;
+  }
+
+  // If GuestFields tab exists but has no data rows and hasn't been seeded yet, seed defaults
+  if (tab === TABS.GuestFields && values.length <= 1) {
+    const seededKey = 'sheet:guest-fields:seeded';
+    const alreadySeeded = await kv().get(seededKey).catch(() => null);
+    if (!alreadySeeded) {
+      try {
+        const seededRows = DEFAULT_GUEST_FIELD_ROWS.map((r) =>
+          toRow(TABS.GuestFields, r),
+        );
+        await append(appendRange(TABS.GuestFields), seededRows);
+        await kv().set(seededKey, '1').catch(() => {});
+        const defaultRows = DEFAULT_GUEST_FIELD_ROWS;
+        const rowNumbers = new Map<string, number>();
+        defaultRows.forEach((r, idx) => rowNumbers.set(r.id, idx + 2));
+        return { rows: defaultRows, rowNumbers };
+      } catch (err) {
+        console.error('[sheets] Failed to seed default guest fields:', err);
+      }
+    }
+  }
+
   const { rows } = toObjects(values);
 
   const key = idColumn(tab);
@@ -74,6 +139,9 @@ export async function listRows(tab: TabName): Promise<RawRow[]> {
   // No spreadsheet: the admin list screens render empty rather than surfacing
   // a Google auth failure. Writes are refused earlier with a clear message.
   if (!sheetsConfigured()) return [];
+  if (!sheetsConfigured()) {
+    return tab === TABS.GuestFields ? DEFAULT_GUEST_FIELD_ROWS : [];
+  }
 
   const cached = await kv()
     .get<RawRow[]>(rowsCacheKey(tab))
@@ -122,7 +190,16 @@ export async function upsertRow(
     return { id, created: false };
   }
 
-  await append(appendRange(tab), values);
+  try {
+    await append(appendRange(tab), values);
+  } catch (err) {
+    if (err instanceof SheetsError && err.status === 400) {
+      await ensureTab(tab);
+      await append(appendRange(tab), values);
+    } else {
+      throw err;
+    }
+  }
   await invalidateRows(tab);
   return { id, created: true };
 }
@@ -150,12 +227,20 @@ export async function upsertMany(
   }
 
   if (updates.length > 0) await batchUpdate(updates);
-  if (additions.length > 0) await append(appendRange(tab), additions);
+  if (additions.length > 0) {
+    try {
+      await append(appendRange(tab), additions);
+    } catch (err) {
+      if (err instanceof SheetsError && err.status === 400) {
+        await ensureTab(tab);
+        await append(appendRange(tab), additions);
+      } else {
+        throw err;
+      }
+    }
+  }
   await invalidateRows(tab);
 }
-
-/** Tab title -> numeric sheetId, needed for structural edits. Cached. */
-let tabIdCache: Map<string, number> | null = null;
 
 async function sheetIdFor(tab: TabName): Promise<number> {
   if (!tabIdCache) {

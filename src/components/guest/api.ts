@@ -106,20 +106,6 @@ export const guestApi = {
       body: JSON.stringify(body),
     }),
 
-  verifyBooking: (
-    sessionId: string,
-    body: { phone: string },
-  ) =>
-    call<{
-      guestName: string;
-      guestPhone: string;
-      villa: string;
-      booking?: Record<string, unknown>;
-    }>(`/api/s/${sessionId}/verify-booking`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-
   addToCart: (
     sessionId: string,
     body: {

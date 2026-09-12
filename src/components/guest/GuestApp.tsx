@@ -151,18 +151,26 @@ export function GuestApp({
     // The villa's conditions are no longer one of these. They are the first
     // thing on /order, before the guest has even picked a villa, so repeating
     // them here would be the same poster twice in thirty seconds.
-    const steps: FlowStep[] = ['details'];
+    const steps: FlowStep[] = [];
+    if ((catalog?.guestFields ?? []).some((f) => f.isActive)) steps.push('details');
     if ((catalog?.allergens ?? []).some((a) => a.isActive)) steps.push('allergy');
     return steps;
-  }, [catalog?.allergens]);
+  }, [catalog?.guestFields, catalog?.allergens]);
 
-  // The phone number is what marks a session as introduced: it is the one
-  // answer the flow insists on, so a session holding one has been through it.
-  const introduced = Boolean(snapshot?.session?.guestPhone);
+  // A session holding any guest details is marked as introduced.
+  // If there are no guest fields configured, the session doesn't need to be introduced.
+  const hasGuestFields = (catalog?.guestFields ?? []).some((f) => f.isActive);
+  const introduced = hasGuestFields
+    ? Boolean(
+        snapshot?.session?.guestPhone ||
+          snapshot?.session?.guestName ||
+          (snapshot?.session?.guestExtra && snapshot.session.guestExtra.length > 0),
+      )
+    : true;
   const flowStarted = useRef(false);
 
   useEffect(() => {
-    if (flowStarted.current || !canOrder || introduced) return;
+    if (flowStarted.current || !canOrder || introduced || flowSteps.length === 0) return;
     flowStarted.current = true;
     // A beat after the menu paints, so the guest sees what they scanned into
     // rather than a dialog over a blank screen.

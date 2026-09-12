@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getTables } from '@/lib/tables';
-import { createOrJoinSession, sessionCookie, updateSession } from '@/lib/session';
-import { verifyGuestBooking } from '@/lib/booking';
+import { createOrJoinSession, sessionCookie } from '@/lib/session';
 import { verifyLineIdToken } from '@/lib/line';
 import { clientIp, rateLimit } from '@/lib/ratelimit';
 import { parseLocale, LOCALE_COOKIE } from '@/i18n/locale';
@@ -15,16 +14,6 @@ export const runtime = 'nodejs';
 const enterSchema = z.object({
   /** The villa slug the guest picked on the entry screen. */
   villa: z.string().min(1).max(64),
-  /** Booking phone number required for login and stay verification */
-  phone: z
-    .string()
-    .trim()
-    .min(8, 'กรุณากรอกเบอร์โทรศัพท์')
-    .max(40)
-    .refine(
-      (s) => /^[0-9+\-() ]+$/.test(s) && s.replace(/\D/g, '').length >= 8,
-      { message: 'เบอร์โทรศัพท์ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง' },
-    ),
   /**
    * The LIFF id token, when the guest opened the link inside LINE. Verified
    * against LINE here — a plain user id from the browser is worthless, since
@@ -34,10 +23,12 @@ const enterSchema = z.object({
 });
 
 /**
- * Turns "I am staying in villa 3 and my booking phone is 081XXXXXXX" into a session.
+ * Turns "I am staying in villa 3" into a session.
  *
- * Sessions are ONLY created or joined after successful booking and stay window verification
- * against the resort's master Google Sheet (บันทึกการจอง).
+ * It is a separate route from the guest app itself so that the session cookie
+ * can be set on the response before the browser navigates. Without that,
+ * opening the page would either be a server-side redirect loop or a flash of
+ * an uninitialised session while client-side code races to create one.
  */
 export async function POST(req: NextRequest) {
   const limit = await rateLimit('session', clientIp(req));
@@ -56,21 +47,6 @@ export async function POST(req: NextRequest) {
     return fail('วิลล่านี้ยังไม่เปิดใช้งานระบบสั่งอาหาร', 403, { code: 'INACTIVE' });
   }
 
-  // 1. Verify guest booking against the Google Sheet BEFORE creating any session!
-  const bookingCheck = await verifyGuestBooking(
-    body.data.phone,
-    Date.now(),
-    table.villa || table.label,
-  );
-
-  if (!bookingCheck.ok || !bookingCheck.booking) {
-    return fail(
-      bookingCheck.error ?? 'ไม่สามารถยืนยันข้อมูลผู้เข้าพักได้',
-      400,
-      { reason: bookingCheck.reason, booking: bookingCheck.booking },
-    );
-  }
-
   const locale = parseLocale(req.cookies.get(LOCALE_COOKIE)?.value);
 
   // A token that fails to verify is treated as no token at all. The guest gets
@@ -80,22 +56,16 @@ export async function POST(req: NextRequest) {
     ? await verifyLineIdToken(body.data.idToken)
     : null;
 
-  // 2. Open / Join session ONLY after successful booking verification!
-  const session = await createOrJoinSession(table, locale, profile?.userId ?? '');
-
-  await updateSession(session.id, {
-    guestName: bookingCheck.booking.name || profile?.displayName || 'ผู้เข้าพัก',
-    guestPhone: bookingCheck.booking.phone,
-    ...(bookingCheck.booking.villa ? { villa: bookingCheck.booking.villa } : {}),
-  });
+  const session = await createOrJoinSession(
+    table,
+    locale,
+    profile?.userId ?? '',
+  );
 
   const res = NextResponse.json({
     ok: true,
     sessionId: session.id,
     slug: table.slug,
-    guestName: bookingCheck.booking.name,
-    guestPhone: bookingCheck.booking.phone,
-    villa: bookingCheck.booking.villa,
   });
 
   // Attached to this exact response, so the browser has it before it navigates.

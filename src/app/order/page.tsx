@@ -29,11 +29,11 @@ export default async function OrderEntryPage({
 
   const [catalog, tables] = await Promise.all([getCatalog(), getTables().catch(() => [])]);
 
-  // If the guest already logged in and holds an active OPEN session, resume directly
+  // If the guest already holds an active OPEN session, resume directly
   const sessionId = await cookieSessionId();
   if (sessionId) {
     const session = await getSession(sessionId);
-    if (session && session.status === 'OPEN' && session.guestPhone) {
+    if (session && session.status === 'OPEN') {
       const table = tables.find((t) => t.id === session.tableId);
       if (table?.slug && (!params.villa || params.villa === table.slug)) {
         redirect(`/${table.slug}/${session.id}`);
