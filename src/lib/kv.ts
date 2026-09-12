@@ -99,6 +99,7 @@ export const K = {
   openSessions: k('sessions:open'),
   sheetsCallCount: (minute: string) => k(`metrics:sheets:${minute}`),
   googleToken: k('google:access_token'),
+  lineToken: k('settings:line_token'),
   adminLoginFail: (id: string) => k(`admin:fail:${id}`),
   diagPing: k('diag:ping'),
 } as const;

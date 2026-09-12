@@ -7,6 +7,8 @@ import { audit } from '@/lib/audit';
 import { clientIp } from '@/lib/ratelimit';
 import { handler, fail, ok } from '@/lib/api';
 import { sheetsConfigured } from '@/lib/demo';
+import { cleanLineToken } from '@/lib/line';
+import { kv, K } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,11 +17,21 @@ export const GET = handler(async (req: Request) => {
   const auth = await requireAdmin(req, 'MANAGER');
   if (!auth.ok) return auth.response;
 
-  const settings = await loadSettingsMap();
-  return ok({ settings, defaults: SETTINGS_DEFAULTS });
+  const isOwner = auth.admin.role === 'OWNER';
+  const rawSettings = await loadSettingsMap();
+  const settings = { ...rawSettings };
+  const defaults = { ...SETTINGS_DEFAULTS };
+
+  // Only OWNER can view or edit line_channel_token
+  if (!isOwner) {
+    delete settings.line_channel_token;
+    delete defaults.line_channel_token;
+  }
+
+  return ok({ settings, defaults, isOwner });
 });
 
-/** Owner-only: these values move money (service charge, VAT, PromptPay name). */
+/** Owner-only: these values move money (service charge, VAT, PromptPay name) and sensitive credentials. */
 export const POST = handler(async (req: Request) => {
   const auth = await requireAdmin(req, 'OWNER');
   if (!auth.ok) return auth.response;
@@ -32,9 +44,19 @@ export const POST = handler(async (req: Request) => {
     );
   }
 
-
   const body = await parseBody(req, settingsSchema);
   if (!body.ok) return fail(body.error);
+
+  // Sanitize line_channel_token and update hot cache in Redis
+  const tokenEntry = body.data.entries.find((e) => e.key === 'line_channel_token');
+  if (tokenEntry) {
+    tokenEntry.value = cleanLineToken(tokenEntry.value);
+    if (tokenEntry.value) {
+      await kv().set(K.lineToken, tokenEntry.value, { ex: 86400 * 30 }).catch(() => {});
+    } else {
+      await kv().del(K.lineToken).catch(() => {});
+    }
+  }
 
   await writeSettings(body.data.entries);
   await bustMenuCache();

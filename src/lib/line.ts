@@ -27,12 +27,45 @@ const PUSH_URL = 'https://api.line.me/v2/bot/message/push';
 /** A push must never hold up the staff member who pressed Confirm. */
 const TIMEOUT_MS = 6000;
 
+import { kv, K } from './kv';
+import { loadSettingsMap } from './sheets/repo';
+
+export function cleanLineToken(token: string): string {
+  return token
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .trim()
+    .replace(/^Bearer\s+/i, '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .trim();
+}
+
+export async function getLineChannelToken(): Promise<string> {
+  try {
+    const cached = await kv().get<string>(K.lineToken);
+    if (cached) return cleanLineToken(cached);
+  } catch {}
+
+  try {
+    const settings = await loadSettingsMap();
+    if (settings.line_channel_token?.trim()) {
+      const clean = cleanLineToken(settings.line_channel_token);
+      await kv().set(K.lineToken, clean, { ex: 86400 }).catch(() => {});
+      return clean;
+    }
+  } catch {}
+
+  return cleanLineToken(env.lineChannelToken || '');
+}
+
 export function lineLoginConfigured(): boolean {
   return Boolean(env.lineLoginChannelId);
 }
 
-export function linePushConfigured(): boolean {
-  return Boolean(env.lineChannelToken);
+export async function linePushConfigured(): Promise<boolean> {
+  const token = await getLineChannelToken();
+  return Boolean(token);
 }
 
 export interface LineProfile {
@@ -79,13 +112,13 @@ export async function verifyLineIdToken(
   }
 }
 
-/** Fire-and-forget push. Returns detailed outcome so UI can show exact error. */
 export async function pushTextDetailed(
   userId: string,
   text: string,
+  explicitToken?: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const token = env.lineChannelToken;
-  if (!token) return { ok: false, error: 'ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN บน Vercel' };
+  const token = explicitToken ? cleanLineToken(explicitToken) : await getLineChannelToken();
+  if (!token) return { ok: false, error: 'ยังไม่ได้ตั้งค่า LINE Channel Access Token ใน Admin Settings' };
   if (!userId) return { ok: false, error: 'ไม่มี LINE User ID ของลูกค้า' };
 
   try {
@@ -183,6 +216,7 @@ export async function pushOrderConfirmed(
   settings: MenuCatalog['settings'],
 ): Promise<{ ok: boolean; error?: string }> {
   if (!order.lineUserId) return { ok: false, error: 'ไม่มี LINE UID ในออเดอร์นี้' };
-  if (!linePushConfigured()) return { ok: false, error: 'ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN บน Vercel' };
+  const hasToken = await linePushConfigured();
+  if (!hasToken) return { ok: false, error: 'ยังไม่ได้ตั้งค่า LINE Channel Access Token ใน Admin Settings' };
   return pushTextDetailed(order.lineUserId, confirmationText(order, settings));
 }

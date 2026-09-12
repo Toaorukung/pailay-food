@@ -177,4 +177,16 @@ describe('payment and stay completion', () => {
   });
 });
 
+describe('LINE token sanitation', () => {
+  it('cleans quotes, Bearer prefix, and whitespace from token', async () => {
+    const { cleanLineToken } = await import('@/lib/line');
+    expect(cleanLineToken('  test_token  ')).toBe('test_token');
+    expect(cleanLineToken('"test_token"')).toBe('test_token');
+    expect(cleanLineToken("'test_token'")).toBe('test_token');
+    expect(cleanLineToken('Bearer test_token')).toBe('test_token');
+    expect(cleanLineToken('bearer test_token')).toBe('test_token');
+    expect(cleanLineToken('  "Bearer test_token"  ')).toBe('test_token');
+  });
+});
+
 

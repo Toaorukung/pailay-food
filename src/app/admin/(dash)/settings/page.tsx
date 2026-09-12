@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Save, Info, ImagePlus, X } from 'lucide-react';
+import { Save, Info, ImagePlus, X, Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { adminFetch } from '@/components/admin/adminApi';
 import { Button, Card, Field, Input, Skeleton, Textarea } from '@/components/ui';
 
@@ -17,6 +17,7 @@ interface SettingDef {
 // Named rather than repeated as literals: a mistyped section string would
 // silently drop the field off the page instead of failing to build.
 const S_GENERAL = 'ทั่วไป';
+const S_LINE = 'LINE Official Account & บรอดแคสต์';
 const S_HOURS = 'เวลารับออเดอร์';
 const S_PRICING = 'ราคาและภาษี';
 const S_PAYMENT = 'การชำระเงิน';
@@ -44,8 +45,13 @@ function CrossLink({ href, children }: { href: string; children: ReactNode }) {
  * what stops someone hunting this page for a setting that was never going to be
  * on it.
  */
-const SECTIONS: { title: string; note?: ReactNode }[] = [
+const SECTIONS: { title: string; note?: ReactNode; ownerOnly?: boolean }[] = [
   { title: S_GENERAL },
+  {
+    title: S_LINE,
+    ownerOnly: true,
+    note: 'ตั้งค่า Channel Access Token จาก LINE Developers Console เพื่อให้ระบบส่งข้อความยืนยันคำสั่งซื้อไปยัง LINE ของลูกค้าโดยอัตโนมัติ (เฉพาะ OWNER เท่านั้น)',
+  },
   { title: S_HOURS },
   { title: S_PRICING },
   { title: S_PAYMENT },
@@ -91,6 +97,15 @@ const SETTINGS: SettingDef[] = [
     type: 'number',
     hint: 'ใส่ 0 ถ้าไม่กำหนด',
     section: S_GENERAL,
+  },
+
+  {
+    key: 'line_channel_token',
+    label: 'Channel Access Token (Messaging API)',
+    hint: 'คัดลอกจาก LINE Developers Console > Messaging API > Channel access token (กด Issue / Reissue — Token ยาวประมาณ 170+ ตัวอักษร ไม่ใช่ Channel secret)',
+    type: 'textarea',
+    rows: 4,
+    section: S_LINE,
   },
 
   {
@@ -198,16 +213,21 @@ const SETTINGS: SettingDef[] = [
 
 export default function SettingsPage() {
   const [values, setValues] = useState<Record<string, string> | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await adminFetch<{ settings: Record<string, string> }>(
+    const res = await adminFetch<{ settings: Record<string, string>; isOwner?: boolean }>(
       '/api/admin/settings',
     );
-    if (res.ok) setValues(res.data.settings);
-    else setError(res.error);
+    if (res.ok) {
+      setValues(res.data.settings);
+      setIsOwner(Boolean(res.data.isOwner));
+    } else {
+      setError(res.error);
+    }
   }, []);
 
   useEffect(() => {
@@ -220,7 +240,8 @@ export default function SettingsPage() {
     setError(null);
     setMessage(null);
 
-    const entries = SETTINGS.map((s) => ({
+    const targetSettings = isOwner ? SETTINGS : SETTINGS.filter((s) => s.section !== S_LINE);
+    const entries = targetSettings.map((s) => ({
       key: s.key,
       value: String(values[s.key] ?? ''),
     }));
@@ -232,7 +253,7 @@ export default function SettingsPage() {
 
     setBusy(false);
     if (!res.ok) setError(res.error);
-    else setMessage('บันทึกแล้ว — หน้าลูกค้าจะเห็นค่าใหม่ทันที');
+    else setMessage('บันทึกการตั้งค่าเรียบร้อยแล้ว — หน้าลูกค้าและการส่ง LINE จะอัปเดตทันที');
   }
 
   if (!values) {
@@ -258,7 +279,7 @@ export default function SettingsPage() {
       {/* Column flow rather than a grid: sections have wildly different
           heights, and a grid would leave a ragged hole under every short one. */}
       <div className="[column-fill:balance] gap-5 lg:columns-2 2xl:columns-3">
-        {SECTIONS.map(({ title, note }) => (
+        {SECTIONS.filter((s) => !s.ownerOnly || isOwner).map(({ title, note }) => (
           <Card key={title} className="mb-5 inline-block w-full space-y-3 break-inside-avoid align-top">
             <h2 className="font-bold">{title}</h2>
             {note && <p className="text-xs leading-relaxed muted">{note}</p>}
@@ -270,6 +291,9 @@ export default function SettingsPage() {
                 onChange={(v) => setValues({ ...values, [setting.key]: v })}
               />
             ))}
+            {title === S_LINE && isOwner && (
+              <LineTestWidget token={values['line_channel_token'] ?? ''} />
+            )}
           </Card>
         ))}
       </div>
@@ -426,3 +450,93 @@ function ImageSetting({
     </Field>
   );
 }
+
+function LineTestWidget({ token }: { token: string }) {
+  const [targetId, setTargetId] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  useEffect(() => {
+    adminFetch<{ sampleUserId: string }>('/api/admin/line/test').then((res) => {
+      if (res.ok && res.data.sampleUserId) {
+        setTargetId(res.data.sampleUserId);
+      }
+    });
+  }, []);
+
+  async function handleTest() {
+    if (!targetId.trim()) {
+      setTestResult({ ok: false, msg: 'กรุณาระบุ LINE User ID ของผู้รับการทดสอบ' });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+
+    const res = await adminFetch<{ success: boolean; message: string }>('/api/admin/line/test', {
+      method: 'POST',
+      body: JSON.stringify({
+        token: token.trim(),
+        targetUserId: targetId.trim(),
+        message: '🔔 ทดสอบการแจ้งเตือนจาก Pailay Food: เชื่อมต่อ LINE Messaging API สำเร็จแล้ว!',
+      }),
+    });
+
+    setTesting(false);
+    if (res.ok) {
+      setTestResult({ ok: true, msg: 'ส่งข้อความทดสอบสำเร็จ! ตรวจสอบในแชท LINE ได้เลย' });
+    } else {
+      setTestResult({ ok: false, msg: res.error || 'ส่งไม่สำเร็จ' });
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface-sunken)] p-3.5 space-y-3">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <Send className="size-4 text-brand-600" />
+        ทดสอบส่งข้อความเข้า LINE
+      </div>
+      <Field
+        label="LINE User ID ทดสอบ"
+        hint="ระบบดึง UID จากออเดอร์ล่าสุดของลูกค้าให้อัตโนมัติ (หรือใส่ UID บัญชี LINE ของคุณเอง)"
+      >
+        <Input
+          value={targetId}
+          onChange={(e) => setTargetId(e.target.value)}
+          placeholder="U..."
+          className="font-mono text-xs"
+        />
+      </Field>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        loading={testing}
+        disabled={!token?.trim()}
+        onClick={handleTest}
+      >
+        <Send className="size-3.5" />
+        ทดสอบส่งข้อความ
+      </Button>
+      {!token?.trim() && (
+        <p className="text-xs text-amber-600">กรุณากรอก Channel Access Token ด้านบนก่อนกดทดสอบ</p>
+      )}
+      {testResult && (
+        <div
+          className={`flex items-start gap-2 rounded-lg p-2.5 text-xs ${
+            testResult.ok
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}
+        >
+          {testResult.ok ? (
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-600 mt-0.5" />
+          ) : (
+            <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
+          )}
+          <div className="min-w-0 flex-1 break-words leading-relaxed">{testResult.msg}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
