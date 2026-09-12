@@ -22,7 +22,7 @@ export const GET = handler(async (req: Request) => {
   const settings = { ...rawSettings };
   const defaults = { ...SETTINGS_DEFAULTS };
 
-  // Only OWNER can view or edit sensitive LINE credentials
+  // Only OWNER can view or edit sensitive LINE and Lark credentials
   if (!isOwner) {
     delete settings.line_channel_token;
     delete defaults.line_channel_token;
@@ -30,6 +30,10 @@ export const GET = handler(async (req: Request) => {
     delete defaults.line_channel_id;
     delete settings.line_channel_secret;
     delete defaults.line_channel_secret;
+    delete settings.lark_webhook_url;
+    delete defaults.lark_webhook_url;
+    delete settings.lark_webhook_secret;
+    delete defaults.lark_webhook_secret;
   }
 
   return ok({ settings, defaults, isOwner });
@@ -69,6 +73,24 @@ export const POST = handler(async (req: Request) => {
       await kv().set(K.lineToken, tokenEntry.value, { ex: 86400 * 30 }).catch(() => {});
     } else {
       await kv().del(K.lineToken).catch(() => {});
+    }
+  }
+
+  // Update lark_webhook_url and lark_webhook_secret in Redis
+  const larkUrlEntry = body.data.entries.find((e) => e.key === 'lark_webhook_url');
+  if (larkUrlEntry) {
+    if (larkUrlEntry.value?.trim()) {
+      await kv().set(K.larkWebhookUrl, larkUrlEntry.value.trim(), { ex: 86400 * 30 }).catch(() => {});
+    } else {
+      await kv().del(K.larkWebhookUrl).catch(() => {});
+    }
+  }
+  const larkSecretEntry = body.data.entries.find((e) => e.key === 'lark_webhook_secret');
+  if (larkSecretEntry) {
+    if (larkSecretEntry.value?.trim()) {
+      await kv().set(K.larkWebhookSecret, larkSecretEntry.value.trim(), { ex: 86400 * 30 }).catch(() => {});
+    } else {
+      await kv().del(K.larkWebhookSecret).catch(() => {});
     }
   }
 

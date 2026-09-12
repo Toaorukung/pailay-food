@@ -18,6 +18,7 @@ interface SettingDef {
 // silently drop the field off the page instead of failing to build.
 const S_GENERAL = 'ทั่วไป';
 const S_LINE = 'LINE Official Account & บรอดแคสต์';
+const S_LARK = 'Lark — แจ้งเตือนออเดอร์เข้าห้องครัว / พนักงาน';
 const S_HOURS = 'เวลารับออเดอร์';
 const S_PRICING = 'ราคาและภาษี';
 const S_PAYMENT = 'การชำระเงิน';
@@ -51,6 +52,11 @@ const SECTIONS: { title: string; note?: ReactNode; ownerOnly?: boolean }[] = [
     title: S_LINE,
     ownerOnly: true,
     note: 'ตั้งค่า Channel Access Token จาก LINE Developers Console เพื่อให้ระบบส่งข้อความยืนยันคำสั่งซื้อไปยัง LINE ของลูกค้าโดยอัตโนมัติ (เฉพาะ OWNER เท่านั้น)',
+  },
+  {
+    title: S_LARK,
+    ownerOnly: true,
+    note: 'เชื่อมต่อ Custom Bot Webhook ของ Lark เพื่อส่งการ์ดออเดอร์ใหม่เข้ากลุ่มแชทพนักงาน/ครัวทันทีที่มีลูกค้าสั่งอาหาร (เฉพาะ OWNER เท่านั้นที่มองเห็นและจัดการได้)',
   },
   { title: S_HOURS },
   { title: S_PRICING },
@@ -118,6 +124,21 @@ const SETTINGS: SettingDef[] = [
     type: 'textarea',
     rows: 3,
     section: S_LINE,
+  },
+
+  {
+    key: 'lark_webhook_url',
+    label: 'Lark Custom Bot Webhook URL',
+    hint: 'คัดลอกจาก Lark > Group Settings > Bots > Add Bot > Custom Bot > Webhook URL',
+    type: 'textarea',
+    rows: 2,
+    section: S_LARK,
+  },
+  {
+    key: 'lark_webhook_secret',
+    label: 'Lark Secret (ทางเลือก — เมื่อเปิด Signature Verification)',
+    hint: 'ใส่เฉพาะเมื่อเปิดตัวเลือก Signature Verification ในบอท Lark (เว้นว่างไว้ได้)',
+    section: S_LARK,
   },
 
   {
@@ -252,7 +273,9 @@ export default function SettingsPage() {
     setError(null);
     setMessage(null);
 
-    const targetSettings = isOwner ? SETTINGS : SETTINGS.filter((s) => s.section !== S_LINE);
+    const targetSettings = isOwner
+      ? SETTINGS
+      : SETTINGS.filter((s) => s.section !== S_LINE && s.section !== S_LARK);
     const entries = targetSettings.map((s) => ({
       key: s.key,
       value: String(values[s.key] ?? ''),
@@ -265,7 +288,7 @@ export default function SettingsPage() {
 
     setBusy(false);
     if (!res.ok) setError(res.error);
-    else setMessage('บันทึกการตั้งค่าเรียบร้อยแล้ว — หน้าลูกค้าและการส่ง LINE จะอัปเดตทันที');
+    else setMessage('บันทึกการตั้งค่าเรียบร้อยแล้ว — การแจ้งเตือนและข้อมูลร้านจะอัปเดตทันที');
   }
 
   if (!values) {
@@ -308,6 +331,12 @@ export default function SettingsPage() {
                 channelId={values['line_channel_id'] ?? ''}
                 channelSecret={values['line_channel_secret'] ?? ''}
                 token={values['line_channel_token'] ?? ''}
+              />
+            )}
+            {title === S_LARK && isOwner && (
+              <LarkTestWidget
+                url={values['lark_webhook_url'] ?? ''}
+                secret={values['lark_webhook_secret'] ?? ''}
               />
             )}
           </Card>
@@ -553,6 +582,86 @@ function LineTestWidget({
       {!hasCredentials && (
         <p className="text-xs text-amber-600">
           กรุณากรอก Channel ID + Secret หรือ Channel Access Token ด้านบนก่อนกดทดสอบ
+        </p>
+      )}
+      {testResult && (
+        <div
+          className={`flex items-start gap-2 rounded-lg p-2.5 text-xs ${
+            testResult.ok
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}
+        >
+          {testResult.ok ? (
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-600 mt-0.5" />
+          ) : (
+            <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
+          )}
+          <div className="min-w-0 flex-1 break-words leading-relaxed whitespace-pre-wrap">
+            {testResult.msg}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LarkTestWidget({ url, secret }: { url?: string; secret?: string }) {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  async function handleTest() {
+    if (!url?.trim()) {
+      setTestResult({ ok: false, msg: 'กรุณาระบุ Lark Webhook URL ก่อนกดทดสอบ' });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+
+    const res = await adminFetch<{ success: boolean; message: string }>('/api/admin/lark/test', {
+      method: 'POST',
+      body: JSON.stringify({
+        url: url.trim(),
+        secret: secret?.trim() || undefined,
+      }),
+    });
+
+    setTesting(false);
+    if (res.ok) {
+      setTestResult({
+        ok: true,
+        msg: res.data.message || 'ส่งข้อความทดสอบเข้ากลุ่ม Lark สำเร็จเรียบร้อยแล้ว! 🎉',
+      });
+    } else {
+      setTestResult({ ok: false, msg: res.error || 'ส่งไม่สำเร็จ' });
+    }
+  }
+
+  const hasUrl = Boolean(url?.trim());
+
+  return (
+    <div className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface-sunken)] p-3.5 space-y-3">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <Send className="size-4 text-brand-600" />
+        ทดสอบส่งการ์ดแจ้งเตือนเข้า Lark
+      </div>
+      <p className="text-xs text-[var(--muted)]">
+        กดปุ่มเพื่อส่งการ์ดตัวอย่างออเดอร์ไปยังกลุ่มแชท Lark เพื่อตรวจสอบว่า Webhook ทำงานถูกต้อง
+      </p>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        loading={testing}
+        disabled={!hasUrl}
+        onClick={handleTest}
+      >
+        <Send className="size-3.5" />
+        ทดสอบส่งเข้า Lark ทันที
+      </Button>
+      {!hasUrl && (
+        <p className="text-xs text-amber-600">
+          กรุณากรอก Webhook URL ด้านบนก่อนกดทดสอบ
         </p>
       )}
       {testResult && (

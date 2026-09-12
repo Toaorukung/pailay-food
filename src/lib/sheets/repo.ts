@@ -75,6 +75,8 @@ export const SETTINGS_DEFAULTS: Record<string, string> = {
   line_channel_id: '2006070718',
   line_channel_secret: 'b7b6838ead3650f35f7490902c2fb8ab',
   line_channel_token: '',
+  lark_webhook_url: '',
+  lark_webhook_secret: '',
 };
 
 function settingsFrom(rows: RawRow[]): Record<string, string> {

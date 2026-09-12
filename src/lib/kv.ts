@@ -102,6 +102,8 @@ export const K = {
   lineToken: k('settings:line_token'),
   lineChannelId: k('settings:line_channel_id'),
   lineChannelSecret: k('settings:line_channel_secret'),
+  larkWebhookUrl: k('settings:lark_webhook_url'),
+  larkWebhookSecret: k('settings:lark_webhook_secret'),
   adminLoginFail: (id: string) => k(`admin:fail:${id}`),
   diagPing: k('diag:ping'),
 } as const;
