@@ -174,14 +174,28 @@ export function bundledCatalog(version: number): MenuCatalog {
  * advisory, so an approximate pin only affects whether staff see an "outside
  * the property" badge — it never blocks an order.
  */
-export const BUNDLED_TABLES: VillaTable[] = [1, 2, 3, 4, 5, 6].map((n) => ({
-  id: `v-villa${n}`,
-  label: `Villa ${n}`,
-  villa: `Villa ${n}`,
-  slug: `villa-${n}`,
-  qrCode: fallbackCode(`v-villa${n}`),
-  lat: 12.8,
-  lng: 99.9667,
-  radiusM: 300,
-  isActive: true,
-}));
+let _bundledTables: VillaTable[] | null = null;
+
+export function getBundledTables(): VillaTable[] {
+  if (!_bundledTables) {
+    _bundledTables = [1, 2, 3, 4, 5, 6].map((n) => ({
+      id: `v-villa${n}`,
+      label: `Villa ${n}`,
+      villa: `Villa ${n}`,
+      slug: `villa-${n}`,
+      qrCode: fallbackCode(`v-villa${n}`),
+      lat: 12.8,
+      lng: 99.9667,
+      radiusM: 300,
+      isActive: true,
+    }));
+  }
+  return _bundledTables;
+}
+
+export const BUNDLED_TABLES: VillaTable[] = new Proxy([] as VillaTable[], {
+  get(target, prop, receiver) {
+    return Reflect.get(getBundledTables(), prop, receiver);
+  },
+});
+

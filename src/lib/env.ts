@@ -28,6 +28,10 @@ function readSecret(name: string): string {
   const v = process.env[name];
   if (v) return v;
 
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return `build-time-placeholder-${name}`;
+  }
+
   if (process.env.NODE_ENV === 'production') {
     throw new Error(
       `Missing ${name}. Generate one with: openssl rand -base64 32`,
