@@ -100,11 +100,23 @@ const SETTINGS: SettingDef[] = [
   },
 
   {
+    key: 'line_channel_id',
+    label: 'Messaging API Channel ID',
+    hint: 'ดูจาก LINE Developers > บัญชีบอท > Basic settings > Channel ID',
+    section: S_LINE,
+  },
+  {
+    key: 'line_channel_secret',
+    label: 'Messaging API Channel Secret',
+    hint: 'ดูจาก LINE Developers > บัญชีบอท > Basic settings > Channel secret',
+    section: S_LINE,
+  },
+  {
     key: 'line_channel_token',
-    label: 'Channel Access Token (Messaging API)',
-    hint: 'คัดลอกจาก LINE Developers Console > Messaging API > Channel access token (กด Issue / Reissue — Token ยาวประมาณ 170+ ตัวอักษร ไม่ใช่ Channel secret)',
+    label: 'Channel Access Token (หรือให้ระบบขอให้อัตโนมัติ)',
+    hint: 'ระบบจะใช้ Channel ID + Secret ด้านบนขอ Token อัตโนมัติ หรือจะวาง Token เองก็ได้',
     type: 'textarea',
-    rows: 4,
+    rows: 3,
     section: S_LINE,
   },
 
@@ -292,7 +304,11 @@ export default function SettingsPage() {
               />
             ))}
             {title === S_LINE && isOwner && (
-              <LineTestWidget token={values['line_channel_token'] ?? ''} />
+              <LineTestWidget
+                channelId={values['line_channel_id'] ?? ''}
+                channelSecret={values['line_channel_secret'] ?? ''}
+                token={values['line_channel_token'] ?? ''}
+              />
             )}
           </Card>
         ))}
@@ -451,7 +467,15 @@ function ImageSetting({
   );
 }
 
-function LineTestWidget({ token }: { token: string }) {
+function LineTestWidget({
+  channelId,
+  channelSecret,
+  token,
+}: {
+  channelId?: string;
+  channelSecret?: string;
+  token?: string;
+}) {
   const [targetId, setTargetId] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -475,7 +499,9 @@ function LineTestWidget({ token }: { token: string }) {
     const res = await adminFetch<{ success: boolean; message: string }>('/api/admin/line/test', {
       method: 'POST',
       body: JSON.stringify({
-        token: token.trim(),
+        channelId: channelId?.trim(),
+        channelSecret: channelSecret?.trim(),
+        token: token?.trim(),
         targetUserId: targetId.trim(),
         message: '🔔 ทดสอบการแจ้งเตือนจาก Pailay Food: เชื่อมต่อ LINE Messaging API สำเร็จแล้ว!',
       }),
@@ -483,11 +509,18 @@ function LineTestWidget({ token }: { token: string }) {
 
     setTesting(false);
     if (res.ok) {
-      setTestResult({ ok: true, msg: 'ส่งข้อความทดสอบสำเร็จ! ตรวจสอบในแชท LINE ได้เลย' });
+      setTestResult({
+        ok: true,
+        msg: res.data.message || 'ส่งข้อความทดสอบสำเร็จ! ตรวจสอบในแชท LINE ได้เลย',
+      });
     } else {
       setTestResult({ ok: false, msg: res.error || 'ส่งไม่สำเร็จ' });
     }
   }
+
+  const hasCredentials = Boolean(
+    token?.trim() || (channelId?.trim() && channelSecret?.trim()),
+  );
 
   return (
     <div className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface-sunken)] p-3.5 space-y-3">
@@ -511,14 +544,16 @@ function LineTestWidget({ token }: { token: string }) {
         variant="secondary"
         size="sm"
         loading={testing}
-        disabled={!token?.trim()}
+        disabled={!hasCredentials}
         onClick={handleTest}
       >
         <Send className="size-3.5" />
         ทดสอบส่งข้อความ
       </Button>
-      {!token?.trim() && (
-        <p className="text-xs text-amber-600">กรุณากรอก Channel Access Token ด้านบนก่อนกดทดสอบ</p>
+      {!hasCredentials && (
+        <p className="text-xs text-amber-600">
+          กรุณากรอก Channel ID + Secret หรือ Channel Access Token ด้านบนก่อนกดทดสอบ
+        </p>
       )}
       {testResult && (
         <div
@@ -533,7 +568,9 @@ function LineTestWidget({ token }: { token: string }) {
           ) : (
             <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
           )}
-          <div className="min-w-0 flex-1 break-words leading-relaxed">{testResult.msg}</div>
+          <div className="min-w-0 flex-1 break-words leading-relaxed whitespace-pre-wrap">
+            {testResult.msg}
+          </div>
         </div>
       )}
     </div>

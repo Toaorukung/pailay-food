@@ -6,6 +6,7 @@ import {
   cleanLineToken,
   getBotInfo,
   verifyTokenWithLine,
+  fetchOAuthToken,
 } from '@/lib/line';
 import { z } from 'zod';
 import { parseBody } from '@/lib/validation';
@@ -15,6 +16,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const testSchema = z.object({
+  channelId: z.string().optional(),
+  channelSecret: z.string().optional(),
   token: z.string().optional(),
   targetUserId: z.string().min(1, 'ต้องระบุ LINE User ID ปลายทาง'),
   message: z.string().max(500).default('ทดสอบการเชื่อมต่อ LINE Messaging API สำเร็จ! 🎉'),
@@ -53,12 +56,21 @@ export const POST = handler(async (req: Request) => {
   const body = await parseBody(req, testSchema);
   if (!body.ok) return fail(body.error);
 
-  const tokenToUse = body.data.token
-    ? cleanLineToken(body.data.token)
-    : await getLineChannelToken();
+  let tokenToUse = body.data.token ? cleanLineToken(body.data.token) : '';
+
+  if (!tokenToUse && body.data.channelId && body.data.channelSecret) {
+    const fetched = await fetchOAuthToken(body.data.channelId, body.data.channelSecret);
+    if (fetched) {
+      tokenToUse = fetched;
+    }
+  }
 
   if (!tokenToUse) {
-    return fail('ยังไม่ได้ระบุ Channel Access Token', 400);
+    tokenToUse = await getLineChannelToken();
+  }
+
+  if (!tokenToUse) {
+    return fail('ยังไม่ได้ระบุ Channel ID/Secret หรือ Channel Access Token', 400);
   }
 
   // Step 1: Verify token with LINE Bot Info API

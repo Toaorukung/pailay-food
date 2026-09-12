@@ -22,10 +22,14 @@ export const GET = handler(async (req: Request) => {
   const settings = { ...rawSettings };
   const defaults = { ...SETTINGS_DEFAULTS };
 
-  // Only OWNER can view or edit line_channel_token
+  // Only OWNER can view or edit sensitive LINE credentials
   if (!isOwner) {
     delete settings.line_channel_token;
     delete defaults.line_channel_token;
+    delete settings.line_channel_id;
+    delete defaults.line_channel_id;
+    delete settings.line_channel_secret;
+    delete defaults.line_channel_secret;
   }
 
   return ok({ settings, defaults, isOwner });
@@ -46,6 +50,16 @@ export const POST = handler(async (req: Request) => {
 
   const body = await parseBody(req, settingsSchema);
   if (!body.ok) return fail(body.error);
+
+  // Update line_channel_id and line_channel_secret in Redis
+  const idEntry = body.data.entries.find((e) => e.key === 'line_channel_id');
+  if (idEntry?.value) {
+    await kv().set(K.lineChannelId, idEntry.value.trim()).catch(() => {});
+  }
+  const secretEntry = body.data.entries.find((e) => e.key === 'line_channel_secret');
+  if (secretEntry?.value) {
+    await kv().set(K.lineChannelSecret, secretEntry.value.trim()).catch(() => {});
+  }
 
   // Sanitize line_channel_token and update hot cache in Redis
   const tokenEntry = body.data.entries.find((e) => e.key === 'line_channel_token');

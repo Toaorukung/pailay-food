@@ -100,6 +100,8 @@ export const K = {
   sheetsCallCount: (minute: string) => k(`metrics:sheets:${minute}`),
   googleToken: k('google:access_token'),
   lineToken: k('settings:line_token'),
+  lineChannelId: k('settings:line_channel_id'),
+  lineChannelSecret: k('settings:line_channel_secret'),
   adminLoginFail: (id: string) => k(`admin:fail:${id}`),
   diagPing: k('diag:ping'),
 } as const;

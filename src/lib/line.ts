@@ -82,6 +82,30 @@ export async function verifyTokenWithLine(
   }
 }
 
+export async function fetchOAuthToken(
+  channelId: string,
+  channelSecret: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch('https://api.line.me/v2/oauth/accessToken', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: channelId.trim(),
+        client_secret: channelSecret.trim(),
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { access_token?: string };
+    return data.access_token || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getLineChannelToken(): Promise<string> {
   try {
     const cached = await kv().get<string>(K.lineToken);
@@ -89,7 +113,30 @@ export async function getLineChannelToken(): Promise<string> {
   } catch {}
 
   try {
+    const channelId = await kv().get<string>(K.lineChannelId);
+    const channelSecret = await kv().get<string>(K.lineChannelSecret);
+    if (channelId && channelSecret) {
+      const freshToken = await fetchOAuthToken(channelId, channelSecret);
+      if (freshToken) {
+        await kv().set(K.lineToken, freshToken, { ex: 2500000 }).catch(() => {});
+        return freshToken;
+      }
+    }
+  } catch {}
+
+  try {
     const settings = await loadSettingsMap();
+    if (settings.line_channel_id?.trim() && settings.line_channel_secret?.trim()) {
+      const freshToken = await fetchOAuthToken(
+        settings.line_channel_id,
+        settings.line_channel_secret,
+      );
+      if (freshToken) {
+        await kv().set(K.lineToken, freshToken, { ex: 2500000 }).catch(() => {});
+        return freshToken;
+      }
+    }
+
     if (settings.line_channel_token?.trim()) {
       const clean = cleanLineToken(settings.line_channel_token);
       await kv().set(K.lineToken, clean, { ex: 86400 }).catch(() => {});

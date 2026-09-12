@@ -72,6 +72,8 @@ export const SETTINGS_DEFAULTS: Record<string, string> = {
     'เครื่องดื่มแอลกอฮอล์จำหน่ายเฉพาะผู้มีอายุ 20 ปีบริบูรณ์ขึ้นไป',
   alcohol_notice_en: 'Alcohol is sold only to people aged 20 and over.',
   alcohol_notice_zh: '酒精饮品仅售予 20 岁及以上人士。',
+  line_channel_id: '2006070718',
+  line_channel_secret: 'b7b6838ead3650f35f7490902c2fb8ab',
   line_channel_token: '',
 };
 
