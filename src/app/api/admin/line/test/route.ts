@@ -1,6 +1,12 @@
 import { requireAdmin } from '@/lib/admin/auth';
 import { handler, fail, ok } from '@/lib/api';
-import { pushTextDetailed, getLineChannelToken, cleanLineToken } from '@/lib/line';
+import {
+  pushTextDetailed,
+  getLineChannelToken,
+  cleanLineToken,
+  getBotInfo,
+  verifyTokenWithLine,
+} from '@/lib/line';
 import { z } from 'zod';
 import { parseBody } from '@/lib/validation';
 import { kv, K } from '@/lib/kv';
@@ -39,7 +45,7 @@ export const GET = handler(async (req: Request) => {
   });
 });
 
-// POST: Tests sending a push message. Restricted to OWNER only.
+// POST: Tests token validity with LINE API and sends a push message. Restricted to OWNER only.
 export const POST = handler(async (req: Request) => {
   const auth = await requireAdmin(req, 'OWNER');
   if (!auth.ok) return auth.response;
@@ -47,12 +53,40 @@ export const POST = handler(async (req: Request) => {
   const body = await parseBody(req, testSchema);
   if (!body.ok) return fail(body.error);
 
-  const tokenToUse = body.data.token ? cleanLineToken(body.data.token) : undefined;
-  const result = await pushTextDetailed(body.data.targetUserId, body.data.message, tokenToUse);
+  const tokenToUse = body.data.token
+    ? cleanLineToken(body.data.token)
+    : await getLineChannelToken();
 
-  if (!result.ok) {
-    return fail(result.error || 'ส่งข้อความไม่สำเร็จ', 400);
+  if (!tokenToUse) {
+    return fail('ยังไม่ได้ระบุ Channel Access Token', 400);
   }
 
-  return ok({ success: true, message: 'ส่งข้อความทดสอบไปยัง LINE สำเร็จแล้ว' });
+  // Step 1: Verify token with LINE Bot Info API
+  const botInfo = await getBotInfo(tokenToUse);
+  if (!botInfo.ok) {
+    const oauthCheck = await verifyTokenWithLine(tokenToUse);
+    const tokenPreview = `${tokenToUse.slice(0, 10)}...${tokenToUse.slice(-6)} (ความยาว ${tokenToUse.length} ตัวอักษร)`;
+
+    return fail(
+      `LINE API ปฏิเสธ Token (${botInfo.status}): ${botInfo.error}\n` +
+      `รายละเอียดจาก LINE OAuth: ${oauthCheck.message}\n` +
+      `Token ที่ส่งไป: ${tokenPreview}`,
+      400,
+    );
+  }
+
+  // Step 2: Push message to target user
+  const result = await pushTextDetailed(body.data.targetUserId, body.data.message, tokenToUse);
+  if (!result.ok) {
+    return fail(
+      `เชื่อมต่อบอท "${botInfo.bot.displayName}" (@${botInfo.bot.basicId}) สำเร็จ แต่ส่งหาผู้ใช้ไม่สำเร็จ: ${result.error}`,
+      400,
+    );
+  }
+
+  return ok({
+    success: true,
+    message: `ส่งข้อความทดสอบจากบอท "${botInfo.bot.displayName}" (@${botInfo.bot.basicId}) ไปยัง LINE สำเร็จแล้ว! 🎉`,
+  });
 });
+

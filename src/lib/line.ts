@@ -31,14 +31,55 @@ import { kv, K } from './kv';
 import { loadSettingsMap } from './sheets/repo';
 
 export function cleanLineToken(token: string): string {
+  if (!token) return '';
   return token
     .trim()
     .replace(/^["']|["']$/g, '')
-    .trim()
     .replace(/^Bearer\s+/i, '')
-    .trim()
     .replace(/^["']|["']$/g, '')
+    .replace(/\s+/g, '')
     .trim();
+}
+
+export async function getBotInfo(explicitToken?: string): Promise<
+  { ok: true; bot: { displayName: string; basicId: string } } | { ok: false; status: number; error: string }
+> {
+  const token = explicitToken ? cleanLineToken(explicitToken) : await getLineChannelToken();
+  if (!token) return { ok: false, status: 400, error: 'ไม่มี Token' };
+
+  try {
+    const res = await fetch('https://api.line.me/v2/bot/info', {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      return { ok: false, status: res.status, error: errText };
+    }
+    const data = (await res.json()) as { displayName: string; basicId: string };
+    return { ok: true, bot: { displayName: data.displayName, basicId: data.basicId } };
+  } catch (err) {
+    return { ok: false, status: 500, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function verifyTokenWithLine(
+  token: string,
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const res = await fetch('https://api.line.me/v2/oauth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ access_token: token }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: 'no-store',
+    });
+    const text = await res.text();
+    return { ok: res.ok, message: text };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 export async function getLineChannelToken(): Promise<string> {
