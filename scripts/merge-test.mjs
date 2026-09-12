@@ -3,7 +3,7 @@
  * order: a second phone scanning the same sticker, several phones scanning at
  * the same instant, and a session id used under the wrong villa.
  */
-const BASE = process.argv[2] ?? 'https://pailay-food.vercel.app';
+const BASE = process.argv[2] ?? 'https://pailayfood.vercel.app';
 const VILLA = process.argv[3] ?? 'villa-5';
 const CODE = process.argv[4];
 

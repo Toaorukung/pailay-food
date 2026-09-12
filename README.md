@@ -37,7 +37,7 @@ Google Sheets API จำกัดราว **300 read/นาที และ 60 
 
 ```
 https://<โดเมน>/<slug ของวิลล่า>/<รหัส>
-เช่น  https://pailay-food.vercel.app/villa-1/PYET_JHko-
+เช่น  https://pailayfood.vercel.app/villa-1/PYET_JHko-
 ```
 
 สแกนแล้วระบบจะหา session ที่เปิดอยู่ของวิลล่านั้น **ถ้ามีอยู่แล้วจะเข้าอันเดิม**

@@ -9,7 +9,7 @@
  *
  *   node scripts/slip-test.mjs <base> <villa-slug> <qr-code> <admin-password>
  */
-const BASE = process.argv[2] ?? 'https://pailay-food.vercel.app';
+const BASE = process.argv[2] ?? 'https://pailayfood.vercel.app';
 const VILLA = process.argv[3];
 const CODE = process.argv[4];
 const PASSWORD = process.argv[5] ?? 'pailay-admin';
