@@ -186,6 +186,7 @@ export async function placeOrder(
       return allergen ? allergen.name.th || allergen.name.en : allergenId;
     }),
     geoStatus: session.geoStatus,
+    distanceM: session.distanceM ?? null,
     locale: session.locale,
   };
 

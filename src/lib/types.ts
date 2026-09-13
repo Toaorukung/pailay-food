@@ -389,6 +389,7 @@ export interface Order {
    */
   allergyLabels: string[];
   geoStatus: GeoStatus;
+  distanceM?: number | null;
   locale: Locale;
 }
 

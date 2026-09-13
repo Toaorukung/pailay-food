@@ -8,6 +8,8 @@ import {
   Hourglass,
   Minus,
   MessageCircle,
+  MapPin,
+  MapPinOff,
   Phone,
   Plus,
   Scale,
@@ -236,10 +238,18 @@ export function PendingConfirm({ catalog: initialCatalog }: { catalog?: MenuCata
 }
 
 type LiveSession = {
+  id?: string;
   guestName: string;
   guestPhone: string;
   guestExtra?: { fieldId: string; label: string; value: string }[];
+  geoStatus?: string;
+  distanceM?: number | null;
 };
+
+function formatDistance(metres: number | null | undefined): string {
+  if (metres === null || metres === undefined) return '—';
+  return metres >= 1000 ? `${(metres / 1000).toFixed(1)} กม.` : `${metres} ม.`;
+}
 
 function PendingCard({
   order,
@@ -266,6 +276,11 @@ function PendingCard({
 }) {
   const unpriced = order.items.filter((i) => i.priceOnRequest && !i.pricedAt);
   const waited = Math.floor((Date.now() - Date.parse(order.createdAt)) / 60000);
+  const geoStatus = order.geoStatus || session?.geoStatus;
+  const distanceM =
+    order.distanceM !== undefined && order.distanceM !== null
+      ? order.distanceM
+      : session?.distanceM ?? null;
 
   return (
     <Card className={isNew ? 'ring-2 ring-[var(--warning)]' : undefined}>
@@ -282,10 +297,43 @@ function PendingCard({
               {waited > 0 && ` · รอมาแล้ว ${waited} นาที`}
             </p>
           </div>
-          <Badge tone="warning">
-            <Hourglass className="size-3" />
-            รอคอนเฟิร์ม
-          </Badge>
+          <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+            <Badge tone="warning">
+              <Hourglass className="size-3" />
+              รอคอนเฟิร์ม
+            </Badge>
+            {geoStatus === 'OUTSIDE' && (
+              <Badge tone="warning">
+                <MapPinOff className="size-3" />
+                นอกพื้นที่ {formatDistance(distanceM)}
+              </Badge>
+            )}
+            {geoStatus === 'OK' && (
+              <Badge tone="success">
+                <MapPin className="size-3" />
+                ในพื้นที่ ({formatDistance(distanceM)})
+              </Badge>
+            )}
+            {geoStatus === 'DENIED' && (
+              <Badge tone="neutral">
+                <MapPinOff className="size-3" />
+                ไม่เปิด GPS
+              </Badge>
+            )}
+            {geoStatus === 'UNAVAILABLE' && (
+              <Badge tone="neutral">
+                <MapPinOff className="size-3" />
+                ไม่มี GPS
+              </Badge>
+            )}
+            {!['OUTSIDE', 'OK', 'DENIED', 'UNAVAILABLE'].includes(geoStatus ?? '') &&
+              distanceM !== null && (
+                <Badge tone="neutral">
+                  <MapPin className="size-3" />
+                  {formatDistance(distanceM)}
+                </Badge>
+              )}
+          </div>
         </header>
 
         <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[var(--surface-sunken)] p-3 text-sm">
@@ -301,6 +349,27 @@ function PendingCard({
           ) : (
             <span className="muted">ไม่มีเบอร์โทร</span>
           )}
+
+          {/* Distance Info in guest bar */}
+          {distanceM !== null && (
+            <span
+              className={`inline-flex items-center gap-1 text-xs tabular font-medium ${
+                geoStatus === 'OUTSIDE'
+                  ? 'text-[var(--warning)]'
+                  : geoStatus === 'OK'
+                    ? 'text-[var(--success)]'
+                    : 'muted'
+              }`}
+            >
+              {geoStatus === 'OUTSIDE' ? (
+                <MapPinOff className="size-3.5 shrink-0" />
+              ) : (
+                <MapPin className="size-3.5 shrink-0" />
+              )}
+              ระยะ {formatDistance(distanceM)}
+            </span>
+          )}
+
           <span
             className="ml-auto flex items-center gap-1.5 text-xs muted"
             title={
@@ -326,6 +395,13 @@ function PendingCard({
               </div>
             ))}
           </dl>
+        )}
+
+        {geoStatus === 'OUTSIDE' && (
+          <p className="flex items-center gap-2 rounded-xl bg-[var(--warning-soft)] p-2.5 text-xs font-semibold text-[var(--warning)]">
+            <MapPinOff className="size-4 shrink-0" />
+            สั่งจากนอกพื้นที่ที่พัก (ห่างประมาณ {formatDistance(distanceM)})
+          </p>
         )}
 
         {order.allergyLabels.length > 0 && (
