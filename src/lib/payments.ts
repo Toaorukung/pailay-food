@@ -104,6 +104,7 @@ export async function attachSlipAsAdmin(
     ...payment,
     slipUrl,
     slipUploadedAt: now,
+    method: 'promptpay',
     status: 'APPROVED',
     verifiedBy: adminName,
     verifiedAt: now,
@@ -124,12 +125,94 @@ export async function attachSlipAsAdmin(
 }
 
 /**
- * Undoes an upload — wrong slip, wrong order, wrong bill.
+ * An admin records a cash payment without requiring a transfer slip.
+ */
+export async function recordCashPaymentAsAdmin(
+  id: string,
+  adminName: string,
+): Promise<Payment | null> {
+  const payment = await getPayment(id);
+  if (!payment) return null;
+
+  const now = new Date().toISOString();
+  const next = await savePayment({
+    ...payment,
+    slipUrl: null,
+    slipUploadedAt: null,
+    method: 'cash',
+    status: 'APPROVED',
+    verifiedBy: adminName,
+    verifiedAt: now,
+    rejectReason: null,
+  });
+
+  await dropFromSlipQueue(id);
+
+  // Automatically end the guest stay (close session) upon cash payment
+  if (payment.sessionId) {
+    const { closeSession } = await import('./session');
+    await closeSession(payment.sessionId, `Auto-closed on cash payment by ${adminName}`).catch((err) => {
+      console.error('[payments] failed to auto close session on cash payment', err);
+    });
+  }
+
+  return next;
+}
+
+/**
+ * Settles multiple payments together (consolidated bill).
+ * If method is 'cash', marks all as APPROVED with method='cash' (no slip).
+ * If method is 'promptpay', attaches the slipUrl to all and marks APPROVED.
+ */
+export async function settleMultiplePaymentsAsAdmin(
+  ids: string[],
+  method: 'cash' | 'promptpay',
+  adminName: string,
+  slipUrl?: string | null,
+): Promise<Payment[]> {
+  const results: Payment[] = [];
+  const now = new Date().toISOString();
+  const sessionIdsToClose = new Set<string>();
+
+  for (const id of ids) {
+    const payment = await getPayment(id);
+    if (!payment) continue;
+
+    const next = await savePayment({
+      ...payment,
+      slipUrl: method === 'cash' ? null : (slipUrl ?? payment.slipUrl),
+      slipUploadedAt: method === 'cash' ? null : (slipUrl ? now : payment.slipUploadedAt),
+      method,
+      status: 'APPROVED',
+      verifiedBy: adminName,
+      verifiedAt: now,
+      rejectReason: null,
+    });
+
+    await dropFromSlipQueue(id);
+    if (payment.sessionId) {
+      sessionIdsToClose.add(payment.sessionId);
+    }
+    results.push(next);
+  }
+
+  if (sessionIdsToClose.size > 0) {
+    const { closeSession } = await import('./session');
+    for (const sessionId of sessionIdsToClose) {
+      await closeSession(sessionId, `Auto-closed on ${method} payment by ${adminName}`).catch((err) => {
+        console.error('[payments] failed to auto close session on payment', err);
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Undoes an upload or cash settlement — wrong bill or mistake.
  *
  * The old image is dropped from the record and the payment goes back into the
- * queue. The blob itself is left in storage rather than deleted: an admin who
- * has just realised they filed a slip against the wrong villa is the last
- * person whose mistake should also destroy the evidence.
+ * queue.
  */
 export async function clearSlip(
   id: string,
@@ -150,6 +233,21 @@ export async function clearSlip(
 
   await markAwaitingSlip(id);
   return next;
+}
+
+/**
+ * Undoes multiple payments together.
+ */
+export async function clearMultiplePayments(
+  ids: string[],
+  adminName: string,
+): Promise<Payment[]> {
+  const results: Payment[] = [];
+  for (const id of ids) {
+    const cleared = await clearSlip(id, adminName);
+    if (cleared) results.push(cleared);
+  }
+  return results;
 }
 
 /** Confirmed orders whose slip an admin has not uploaded yet, oldest first. */

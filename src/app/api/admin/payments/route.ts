@@ -1,8 +1,10 @@
 import { requireAdmin } from '@/lib/admin/auth';
-import { attachSlipAsAdmin, clearSlip, getPayment } from '@/lib/payments';
+import {
+  clearMultiplePayments,
+  settleMultiplePaymentsAsAdmin,
+} from '@/lib/payments';
 import { processUpload, UploadError, MAX_UPLOAD_BYTES } from '@/lib/images';
 import { putImage } from '@/lib/storage';
-import { paymentIdSchema, parseBody } from '@/lib/validation';
 import { audit } from '@/lib/audit';
 import { clientIp } from '@/lib/ratelimit';
 import { handler, fail, ok } from '@/lib/api';
@@ -15,15 +17,10 @@ export const maxDuration = 30;
 /**
  * Recording payment.
  *
- * Guests no longer pay through the app — they transfer to the villa or settle
- * at reception — so this is where the money is written down: an admin uploads
- * the transfer slip against the order, which is what makes it count as
- * revenue. Nothing here gates the kitchen; that was decided at confirm time.
- *
- * The uploaded file is sniffed and re-encoded before it is stored, exactly as
- * a guest upload was. An admin account is not a reason to keep bytes nobody
- * has inspected, and the re-encode is what strips EXIF and anything riding
- * along behind the image data.
+ * Guests settle at reception or transfer — staff record payments here:
+ * 1. Cash: recorded directly without slip (`action=cash`).
+ * 2. Transfer: recorded with transfer slip uploaded (`action=slip` or POST).
+ * Supports single payment or consolidated bills with multiple payment IDs.
  */
 export const POST = handler(async (req: Request) => {
   const auth = await requireAdmin(req, 'STAFF');
@@ -31,25 +28,88 @@ export const POST = handler(async (req: Request) => {
 
   const action = new URL(req.url).searchParams.get('action');
 
-  // ── Remove a slip filed against the wrong order ───────────
+  // ── Remove a slip or undo payment ─────────────────────────
   if (action === 'clear') {
-    const body = await parseBody(req, paymentIdSchema);
-    if (!body.ok) return fail(body.error);
+    const raw = (await req.json().catch(() => ({}))) as {
+      paymentId?: string;
+      paymentIds?: string[];
+    };
+    const paymentIds: string[] = [];
+    if (Array.isArray(raw.paymentIds)) {
+      paymentIds.push(...raw.paymentIds.map(String).filter(Boolean));
+    }
+    if (raw.paymentId && !paymentIds.includes(raw.paymentId)) {
+      paymentIds.push(raw.paymentId);
+    }
+    if (paymentIds.length === 0) return fail('ต้องระบุรายการชำระเงิน', 400);
 
-    const payment = await clearSlip(body.data.paymentId, auth.admin.name);
-    if (!payment) return fail('ไม่พบรายการชำระเงิน', 404);
+    const cleared = await clearMultiplePayments(paymentIds, auth.admin.name);
+    if (cleared.length === 0) return fail('ไม่พบรายการชำระเงิน', 404);
 
-    await audit(
-      auth.admin,
-      'payment.clearSlip',
-      payment.id,
-      { amount: payment.amount, orderId: payment.orderId },
-      clientIp(req),
-    );
-    return ok({ payment });
+    for (const p of cleared) {
+      await audit(
+        auth.admin,
+        'payment.clearSlip',
+        p.id,
+        { amount: p.amount, orderId: p.orderId },
+        clientIp(req),
+      );
+    }
+    return ok({ payment: cleared[0], payments: cleared });
   }
 
-  // ── Upload the slip ──────────────────────────────────────
+  // ── Cash Payment (no slip required) ──────────────────────
+  if (action === 'cash') {
+    const raw = (await req.json().catch(() => ({}))) as {
+      paymentId?: string;
+      paymentIds?: string[];
+    };
+    const paymentIds: string[] = [];
+    if (Array.isArray(raw.paymentIds)) {
+      paymentIds.push(...raw.paymentIds.map(String).filter(Boolean));
+    }
+    if (raw.paymentId && !paymentIds.includes(raw.paymentId)) {
+      paymentIds.push(raw.paymentId);
+    }
+    if (paymentIds.length === 0) return fail('ต้องระบุรายการชำระเงิน', 400);
+
+    const updated = await settleMultiplePaymentsAsAdmin(
+      paymentIds,
+      'cash',
+      auth.admin.name,
+    );
+    if (updated.length === 0) return fail('ไม่พบรายการชำระเงิน', 404);
+
+    for (const p of updated) {
+      await audit(
+        auth.admin,
+        'payment.cashSettled',
+        p.id,
+        { amount: p.amount, orderId: p.orderId, villa: p.villa },
+        clientIp(req),
+      );
+    }
+
+    const sessions = Array.from(
+      new Set(updated.map((p) => p.sessionId).filter(Boolean)),
+    );
+    for (const sId of sessions) {
+      await audit(
+        auth.admin,
+        'session.close',
+        sId,
+        {
+          reason: 'Auto-closed on cash payment',
+          villa: updated[0]?.villa,
+        },
+        clientIp(req),
+      );
+    }
+
+    return ok({ payment: updated[0], payments: updated, sessionClosed: true });
+  }
+
+  // ── Upload the slip (Transfer / PromptPay) ────────────────
   const declaredLength = Number(req.headers.get('content-length') ?? 0);
   if (declaredLength > MAX_UPLOAD_BYTES + 100_000) {
     return fail('ไฟล์ใหญ่เกิน 5MB', 413);
@@ -62,11 +122,25 @@ export const POST = handler(async (req: Request) => {
     return fail('อ่านไฟล์ไม่สำเร็จ', 400);
   }
 
-  const paymentId = String(form.get('paymentId') ?? '');
-  if (!paymentId) return fail('ต้องระบุรายการชำระเงิน', 400);
-
-  const payment = await getPayment(paymentId);
-  if (!payment) return fail('ไม่พบรายการชำระเงิน', 404);
+  const paymentIds: string[] = [];
+  const rawIds = form.get('paymentIds');
+  if (rawIds && typeof rawIds === 'string') {
+    try {
+      const parsed = JSON.parse(rawIds);
+      if (Array.isArray(parsed)) {
+        paymentIds.push(...parsed.map(String).filter(Boolean));
+      } else {
+        paymentIds.push(...rawIds.split(',').map((s) => s.trim()).filter(Boolean));
+      }
+    } catch {
+      paymentIds.push(...rawIds.split(',').map((s) => s.trim()).filter(Boolean));
+    }
+  }
+  const singleId = String(form.get('paymentId') ?? '');
+  if (singleId && !paymentIds.includes(singleId)) {
+    paymentIds.push(singleId);
+  }
+  if (paymentIds.length === 0) return fail('ต้องระบุรายการชำระเงิน', 400);
 
   const file = form.get('slip');
   if (!(file instanceof File)) return fail('กรุณาเลือกไฟล์สลิป', 400);
@@ -91,28 +165,40 @@ export const POST = handler(async (req: Request) => {
     processed.extension,
   );
 
-  const updated = await attachSlipAsAdmin(paymentId, stored.url, auth.admin.name);
-  if (!updated) return fail('บันทึกสลิปไม่สำเร็จ', 500);
-
-  await audit(
-    auth.admin,
-    'payment.slipUploaded',
-    updated.id,
-    { amount: updated.amount, orderId: updated.orderId, villa: updated.villa },
-    clientIp(req),
+  const updated = await settleMultiplePaymentsAsAdmin(
+    paymentIds,
+    'promptpay',
+    auth.admin.name,
+    stored.url,
   );
+  if (updated.length === 0) return fail('บันทึกสลิปไม่สำเร็จ', 500);
 
-  await audit(
-    auth.admin,
-    'session.close',
-    updated.sessionId,
-    {
-      reason: 'Auto-closed on slip upload',
-      paymentId: updated.id,
-      villa: updated.villa,
-    },
-    clientIp(req),
+  for (const p of updated) {
+    await audit(
+      auth.admin,
+      'payment.slipUploaded',
+      p.id,
+      { amount: p.amount, orderId: p.orderId, villa: p.villa },
+      clientIp(req),
+    );
+  }
+
+  const sessions = Array.from(
+    new Set(updated.map((p) => p.sessionId).filter(Boolean)),
   );
+  for (const sId of sessions) {
+    await audit(
+      auth.admin,
+      'session.close',
+      sId,
+      {
+        reason: 'Auto-closed on slip upload',
+        paymentIds: updated.map((p) => p.id),
+        villa: updated[0]?.villa,
+      },
+      clientIp(req),
+    );
+  }
 
-  return ok({ payment: updated, sessionClosed: true });
+  return ok({ payment: updated[0], payments: updated, sessionClosed: true });
 });

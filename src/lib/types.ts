@@ -407,6 +407,8 @@ export type PaymentStatus =
   | 'APPROVED'
   | 'REJECTED';
 
+export type PaymentMethod = 'promptpay' | 'cash' | 'transfer';
+
 export interface Payment {
   id: string;
   sessionId: string;
@@ -415,11 +417,11 @@ export interface Payment {
   /** One payment, one order. Guests settle each order before it is cooked. */
   orderId: string;
   amount: number;
-  method: 'promptpay';
+  method: PaymentMethod;
   status: PaymentStatus;
   slipUrl: string | null;
   slipUploadedAt: string | null;
-  /** The admin who uploaded the slip. */
+  /** The admin who recorded or uploaded the payment/slip. */
   verifiedBy: string | null;
   verifiedAt: string | null;
   rejectReason: string | null;
