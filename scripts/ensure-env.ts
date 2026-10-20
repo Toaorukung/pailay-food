@@ -38,7 +38,7 @@ CRON_SECRET="${secret()}"
 PROMPTPAY_ID="0951519501"
 
 # Standalone admin sign-in. Change this before anyone else can reach the app.
-DEMO_ADMIN_PASSWORD="pailay-admin"
+DEMO_ADMIN_PASSWORD="restaurant-admin"
 `,
   'utf8',
 );
@@ -48,5 +48,5 @@ console.log(`
 
   Running standalone — bundled menu, in-memory store.
   Open http://localhost:3000 and pick a villa to start ordering.
-  Admin: /admin/login  ·  owner / pailay-admin
+  Admin: /admin/login  ·  owner / restaurant-admin
 `);

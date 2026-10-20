@@ -94,7 +94,7 @@ const items: MenuItem[] = ITEMS.map((m) => ({
  * defaults, and the UI already handles them being blank.
  */
 const settings: PublicSettings = {
-  shopName: 'ไปเล วิลล่า',
+  shopName: 'ร้านอาหาร',
   currency: 'THB',
   serviceChargePercent: 0,
   vatPercent: 0,
@@ -103,7 +103,7 @@ const settings: PublicSettings = {
   // Kitchen takes orders 10:00-21:00; the last-order cutoff is the hard one.
   orderOpen: '10:00',
   orderCutoff: '21:00',
-  promptPayName: 'ไปเล วิลล่า',
+  promptPayName: 'ร้านอาหาร',
   contactPhone: '095-151-9501',
   allergyDisclaimer: loc(
     SETTINGS_DEFAULTS.allergy_disclaimer_th,

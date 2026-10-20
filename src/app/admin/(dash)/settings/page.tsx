@@ -532,7 +532,7 @@ function LineTestWidget({
         channelSecret: channelSecret?.trim(),
         token: token?.trim(),
         targetUserId: targetId.trim(),
-        message: '🔔 ทดสอบการแจ้งเตือนจาก Pailay Food: เชื่อมต่อ LINE Messaging API สำเร็จแล้ว!',
+        message: '🔔 ทดสอบการแจ้งเตือนจาก ร้านอาหาร: เชื่อมต่อ LINE Messaging API สำเร็จแล้ว!',
       }),
     });
 

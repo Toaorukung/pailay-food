@@ -6,7 +6,7 @@ import { isConfirmed, type Order, type MenuCatalog } from '@/lib/types';
 const loc = (th: string, en = th, zh = th) => ({ th, en, zh });
 
 const dummySettings: MenuCatalog['settings'] = {
-  shopName: 'ไปเล วิลล่า',
+  shopName: 'ร้านอาหาร',
   currency: 'THB',
   serviceChargePercent: 0,
   vatPercent: 7,

@@ -114,7 +114,7 @@ describe('Admin User Schemas', () => {
 
   describe('Password Hashing for Admin Users', () => {
     it('hashes and correctly verifies passwords', () => {
-      const plain = 'PailayAdminPass2026!';
+      const plain = 'RestaurantAdminPass2026!';
       const hash = hashPassword(plain);
       expect(hash.startsWith('scrypt$')).toBe(true);
       expect(verifyPassword(plain, hash)).toBe(true);

@@ -32,7 +32,7 @@ function loc(r: RawRow, prefix: string): Localized {
 // ── Settings ────────────────────────────────────────────────
 
 export const SETTINGS_DEFAULTS: Record<string, string> = {
-  shop_name: 'Pailay Food',
+  shop_name: 'ร้านอาหาร',
   currency: 'THB',
   service_charge_percent: '0',
   vat_percent: '0',
@@ -351,7 +351,7 @@ export async function loadAdminUsers(): Promise<AdminUser[]> {
         email: (process.env.DEMO_ADMIN_EMAIL ?? '').toLowerCase(),
         username: 'owner',
         passwordHash: hashPassword(
-          process.env.DEMO_ADMIN_PASSWORD || 'pailay-admin',
+          process.env.DEMO_ADMIN_PASSWORD || 'restaurant-admin',
         ),
         name: 'เจ้าของร้าน',
         role: 'OWNER',

@@ -225,9 +225,9 @@ export class MemoryStore {
  * Survives Next.js dev-server hot reloads, which otherwise re-evaluate module
  * scope and would drop every open session on each file save.
  */
-const globalForStore = globalThis as unknown as { __pailayStore?: MemoryStore };
+const globalForStore = globalThis as unknown as { __restaurantStore?: MemoryStore };
 
 export function memoryStore(): MemoryStore {
-  globalForStore.__pailayStore ??= new MemoryStore();
-  return globalForStore.__pailayStore;
+  globalForStore.__restaurantStore ??= new MemoryStore();
+  return globalForStore.__restaurantStore;
 }

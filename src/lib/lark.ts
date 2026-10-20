@@ -131,7 +131,7 @@ export async function sendLarkTest(
           template: 'green',
           title: {
             tag: 'plain_text',
-            content: '🔔 ทดสอบการแจ้งเตือนจาก Pailay Food · ห้องครัว & พนักงาน',
+            content: '🔔 ทดสอบการแจ้งเตือนจาก ร้านอาหาร · ห้องครัว & พนักงาน',
           },
         },
         elements: [

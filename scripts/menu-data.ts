@@ -1,5 +1,5 @@
 /**
- * The real Pailay Villa menu, transcribed from the printed boards in
+ * The real restaurant menu, transcribed from the printed boards in
  * food/detail/.
  *
  * Two structural decisions worth knowing about before editing this file:

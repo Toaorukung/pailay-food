@@ -30,8 +30,8 @@ export async function middleware(req: NextRequest) {
 
   try {
     await jwtVerify(token, new TextEncoder().encode(secret), {
-      issuer: 'pailay-food',
-      audience: 'pailay-admin',
+      issuer: 'restaurant-food',
+      audience: 'restaurant-admin',
     });
   } catch {
     return redirectToLogin(req);

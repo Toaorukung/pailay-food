@@ -28,7 +28,7 @@ export default async function LoginPage({
     <main className="flex min-h-svh items-center justify-center bg-[var(--surface-sunken)] p-6">
       <div className="w-full max-w-sm space-y-5">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold">Pailay Admin</h1>
+          <h1 className="text-2xl font-semibold">ร้านอาหาร</h1>
           <p className="text-sm muted">ระบบจัดการร้านอาหาร</p>
         </div>
 

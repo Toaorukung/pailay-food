@@ -13,7 +13,7 @@ import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
 const BASE = process.argv[2] ?? 'https://pailayfood.vercel.app';
-const PASSWORD = process.argv[3] ?? 'pailay-admin';
+const PASSWORD = process.argv[3] ?? 'restaurant-admin';
 const USER = process.env.ADMIN_USER ?? 'owner';
 const SHOTS = process.env.SHOT_DIR ?? '';
 

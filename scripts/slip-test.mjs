@@ -12,7 +12,7 @@
 const BASE = process.argv[2] ?? 'https://pailayfood.vercel.app';
 const VILLA = process.argv[3];
 const CODE = process.argv[4];
-const PASSWORD = process.argv[5] ?? 'pailay-admin';
+const PASSWORD = process.argv[5] ?? 'restaurant-admin';
 const USER = process.env.ADMIN_USER ?? 'owner';
 
 if (!VILLA || !CODE) {

@@ -3,7 +3,7 @@ import { ThemeProvider, THEME_INIT_SCRIPT } from '@/components/theme';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ไปเล วิลล่า — สั่งอาหาร',
+  title: 'ร้านอาหาร — สั่งอาหาร',
   description: 'สั่งอาหารในวิลล่า — สแกน QR แล้วสั่งได้ทันที',
   robots: { index: false, follow: false },
   formatDetection: { telephone: false },

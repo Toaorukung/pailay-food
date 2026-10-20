@@ -149,7 +149,7 @@ Done.
 
   Admin sign-in (change this immediately):
     username: owner
-    password: pailay-admin
+    password: restaurant-admin
 
   Next steps:
     1. npm run dev
@@ -280,13 +280,13 @@ function buildSeeds(): Record<string, string[][]> {
     ),
 
     [TABS.Settings]: [
-      ['shop_name', 'ไปเล วิลล่า', 'ชื่อร้านที่แสดงบนหัวหน้าเว็บและ QR'],
+      ['shop_name', 'ร้านอาหาร', 'ชื่อร้านที่แสดงบนหัวหน้าเว็บและ QR'],
       ['currency', 'THB', 'สกุลเงิน'],
       ['service_charge_percent', '0', 'ค่าบริการ % (0 = ไม่คิด)'],
       ['vat_percent', '0', 'ภาษีมูลค่าเพิ่ม % (0 = ไม่แสดงบรรทัด VAT)'],
       ['vat_included', 'TRUE', 'TRUE = ราคาที่ตั้งไว้รวม VAT แล้ว (ถอดออกมาแสดงเฉย ๆ)'],
       ['min_order_amount', '0', 'ยอดสั่งขั้นต่ำ'],
-      ['promptpay_name', 'ไปเล วิลล่า', 'ชื่อบัญชีผู้รับเงิน แสดงใต้ QR'],
+      ['promptpay_name', 'ร้านอาหาร', 'ชื่อบัญชีผู้รับเงิน แสดงใต้ QR'],
       ['contact_phone', '095-151-9501', 'เบอร์ติดต่อ แสดงในเมนูที่ต้องสอบถามราคา'],
 
       ['allergy_disclaimer_th', 'ครัวของเราปรุงอาหารทะเลหลายชนิดในพื้นที่เดียวกัน จึงไม่สามารถรับประกันได้ว่าปราศจากสารก่อภูมิแพ้ 100% หากแพ้รุนแรง กรุณาแจ้งพนักงานโดยตรง', ''],
@@ -347,7 +347,7 @@ function buildSeeds(): Record<string, string[][]> {
         username: 'owner',
         // Starter credential. The seed output tells the operator to change it,
         // and the README repeats the instruction.
-        password_hash: hashPassword('pailay-admin'),
+        password_hash: hashPassword('restaurant-admin'),
         name: 'เจ้าของร้าน',
         role: 'OWNER',
         is_active: true,

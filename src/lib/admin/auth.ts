@@ -29,8 +29,8 @@ import {
 
 export const ADMIN_COOKIE = 'pf_admin';
 const SESSION_HOURS = 12;
-const ISSUER = 'pailay-food';
-const AUDIENCE = 'pailay-admin';
+const ISSUER = 'restaurant-food';
+const AUDIENCE = 'restaurant-admin';
 
 export interface AdminSession {
   id: string;

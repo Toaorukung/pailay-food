@@ -140,7 +140,7 @@ export function AdminShell({
             <ChefHat className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-bold leading-tight">ไปเล วิลล่า</p>
+            <p className="truncate font-bold leading-tight">ร้านอาหาร</p>
             <p className="text-xs text-[var(--sidebar-muted)]">จัดการร้านอาหาร</p>
           </div>
           <button
@@ -237,7 +237,7 @@ export function AdminShell({
           >
             <MenuIcon className="size-5" />
           </button>
-          <p className="font-semibold">{current?.label ?? 'ไปเล วิลล่า'}</p>
+          <p className="font-semibold">{current?.label ?? 'ร้านอาหาร'}</p>
         </header>
 
         <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 p-4 lg:p-7">
